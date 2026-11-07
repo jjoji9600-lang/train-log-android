@@ -7,6 +7,7 @@ import android.database.*;
 import android.database.sqlite.*;
 import android.graphics.*;
 import android.net.Uri;
+import android.text.*;
 import android.view.*;
 import android.widget.*;
 import org.json.*;
@@ -18,20 +19,68 @@ import java.util.*;
 public class MainActivity extends Activity {
   static final String[] NAMES={"引体向上","俯卧撑","徒手深蹲"};
   static final String[] YOGA_NAMES={"山式","三角伸展式","战士二式","战士一式","靠墙半下犬式","摊尸式"};
-  static final String[] YOGA_HINTS={
-    "60秒 · 双脚均匀受力，头顶向上，不僵硬锁膝",
-    "左右各2次×20～30秒 · 手扶瑜伽砖，重视躯干伸长",
-    "左右各2次×20～30秒 · 前膝顺脚尖，后脚稳定",
-    "左右各1次×20～30秒 · 可缩短站距，不压腰",
-    "2次×30秒 · 双手扶墙，髋部折叠，舒展背部",
-    "3～5分钟 · 仰卧自然呼吸，完全放松"
+  static final String[] LEGACY_IDS={"tadasana","trikonasana","virabhadrasana2","virabhadrasana1","ardha_adho_mukha_wall","savasana"};
+  static final String[] YOGA_CATEGORIES={"全部","站姿","坐姿","前屈","后弯","扭转","倒置","放松"};
+  static class Pose {
+    final String id,name,category,tip;
+    Pose(String i,String n,String c,String t){id=i;name=n;category=c;tip=t;}
+  }
+  static final Pose[] POSES={
+    new Pose("tadasana","山式","站姿","脚掌均匀受力，膝盖自然伸展，脊柱向上延伸。"),
+    new Pose("urdhva_hastasana","上举手式","站姿","手臂向上伸展时保持肋骨稳定，不刻意塌腰。"),
+    new Pose("utkatasana","幻椅式","站姿","双脚扎根，膝盖跟随脚尖，胸廓保持自然。"),
+    new Pose("trikonasana","三角伸展式","站姿","重心落在两脚，手可扶瑜伽砖，先延长躯干再转胸。"),
+    new Pose("parivrtta_trikonasana","扭转三角式","扭转","先伸长脊柱，再小幅扭转；用瑜伽砖，不强迫转胸。"),
+    new Pose("utthita_parsvakonasana","侧角伸展式","站姿","前膝朝脚尖方向，后脚稳定，躯干向侧面延伸。"),
+    new Pose("parivrtta_parsvakonasana","扭转侧角式","扭转","保持腿部稳定，先延长身体再旋转，避免强拧腰部。"),
+    new Pose("virabhadrasana1","战士一式","站姿","可缩短站距，后脚踩稳，举臂时避免挤压腰部。"),
+    new Pose("virabhadrasana2","战士二式","站姿","前膝朝脚尖，后腿稳定，骨盆与胸口自然展开。"),
+    new Pose("virabhadrasana3","战士三式","站姿","先扶墙练平衡，支撑腿不锁膝，身体与抬起腿向两端延伸。"),
+    new Pose("ardha_chandrasana","半月式","站姿","一手扶瑜伽砖或墙，先求稳定再尝试打开胸口。"),
+    new Pose("parsvottanasana","加强侧伸展式","站姿","两脚稳定，髋部向前折叠，背部延长，不强压腿后侧。"),
+    new Pose("prasarita_padottanasana","双角式","前屈","宽站距，髋部折叠，手扶砖；头晕时缓慢退出。"),
+    new Pose("uttanasana","站立前屈式","前屈","膝盖可微弯，重心稳定，让脊柱自然延长。"),
+    new Pose("adho_mukha_svanasana","下犬式","前屈","手掌推地，膝盖可弯，优先拉长脊柱而非脚跟着地。"),
+    new Pose("ardha_adho_mukha_wall","靠墙半下犬式","前屈","双手扶墙，髋部折叠，背部舒展，不挤压肩关节。"),
+    new Pose("dandasana","杖式","坐姿","坐骨均匀着地，必要时垫毯，背部向上延展。"),
+    new Pose("sukhasana","简易坐","坐姿","臀部坐高一点，膝下可垫支撑，不强求盘腿。"),
+    new Pose("baddha_konasana","束角式","坐姿","坐骨稳，膝下可垫砖或毯，避免强压膝盖。"),
+    new Pose("virasana","英雄坐","坐姿","臀部可坐砖，膝或脚踝不舒服就退出，不硬压。"),
+    new Pose("gomukhasana","牛面式","坐姿","坐稳，双肩保持舒适；手够不到可用瑜伽带。"),
+    new Pose("upavistha_konasana","坐角式","坐姿","坐高、脊柱延伸，双腿打开到能稳定呼吸的幅度。"),
+    new Pose("paschimottanasana","坐姿前屈式","前屈","坐在毯上，先延长躯干再折髋，不拉拽颈部。"),
+    new Pose("janu_sirsasana","单腿头碰膝式","前屈","弯腿膝盖充分支撑，沿伸直腿方向折髋而非强弓背。"),
+    new Pose("trianga_mukhaikapada","半英雄坐前屈式","前屈","弯腿侧膝踝无痛再练，垫高坐骨，不强压。"),
+    new Pose("marichyasana1","玛里琪一式","坐姿","保持坐骨稳定，先把胸口抬起，不追求抱紧腿。"),
+    new Pose("bharadvajasana","巴拉瓦伽式","扭转","坐高并延伸脊柱，轻柔旋转，不借手臂猛拧。"),
+    new Pose("marichyasana3","玛里琪三式","扭转","先延伸脊柱，再随呼气温和转体，不挤压腹部。"),
+    new Pose("ardha_matsyendrasana","半鱼王式","扭转","坐骨稳，旋转均匀，膝腰不适时减小幅度。"),
+    new Pose("balasana","婴儿式","放松","额头可垫毯，膝盖和脚踝舒适为先。"),
+    new Pose("savasana","摊尸式","放松","仰卧自然呼吸，膝下或头下可垫支撑。"),
+    new Pose("supta_baddha_konasana","仰卧束角式","放松","膝下提供支撑，胸口柔和舒展，不强行外开髋部。"),
+    new Pose("supta_padangusthasana","仰卧手抓大脚趾式","前屈","可用瑜伽带，骨盆稳定，不拉直膝到疼痛。"),
+    new Pose("setu_bandha","桥式","后弯","双脚稳、膝盖同向，避免用颈部发力顶起身体。"),
+    new Pose("salabhasana","蝗虫式","后弯","延展胸部和腿，动作小而稳定，颈部保持自然。"),
+    new Pose("bhujangasana","眼镜蛇式","后弯","耻骨和腿部稳定，主要从上背延展，不硬压腰部。"),
+    new Pose("urdhva_mukha_svanasana","上犬式","后弯","胸口向前上方延展，肩远离耳朵，腰不舒服即减轻。"),
+    new Pose("ustrasana","骆驼式","后弯","可手扶骨盆，腿部稳，先伸展胸椎再向后弯。"),
+    new Pose("dhanurasana","弓式","后弯","两侧均衡伸展，避免强拉脚踝或挤压腰部。"),
+    new Pose("urdhva_dhanurasana","轮式","后弯","进阶体式，建议教师检查肩、腕和腰部后再练。"),
+    new Pose("halasana","犁式","倒置","颈部可能承重；无现场指导时先只查阅，不单独练。"),
+    new Pose("salamba_sarvangasana","肩倒立","倒置","颈部受力有风险；建议合格教师现场评估支撑与退出方式。"),
+    new Pose("salamba_sirsasana","头倒立","倒置","颈部承重风险；仅作查阅，先由教师检查对位及进出动作。"),
+    new Pose("viparita_karani","靠墙抬腿式","放松","臀部离墙可留距离，腿放松，头颈保持舒适。")
   };
   static final int GREEN=0xff176b59, DARK=0xff21332f, MUTED=0xff687b74, BG=0xfff6f7f5;
   DB db;
   LinearLayout root;
   EditText[][] counts=new EditText[3][3];
   CheckBox popping,pain;
-  CheckBox[] yogaChecks=new CheckBox[YOGA_NAMES.length];
+  final Set<String> selectedYoga=new LinkedHashSet<>();
+  String yogaCategory="全部", pendingYogaImageId=null;
+  LinearLayout yogaList;
+  TextView yogaSelectedLabel;
+  EditText yogaSearch;
   CheckBox yogaPain;
   EditText yogaMinutes,yogaNotes;
   EditText notes;
@@ -104,48 +153,141 @@ public class MainActivity extends Activity {
       else action.run();
     }catch(Exception ex){toast("输入不正确："+ex.getMessage());}
   }
+  Pose yogaPose(String id){
+    for(Pose p:POSES)if(p.id.equals(id))return p;
+    return null;
+  }
+  ArrayList<String> yogaIds(String raw){
+    ArrayList<String> ids=new ArrayList<>();
+    try {
+      JSONArray arr=new JSONArray(raw==null?"[]":raw);
+      if(arr.length()>0 && arr.opt(0) instanceof Boolean){
+        for(int i=0;i<Math.min(arr.length(),LEGACY_IDS.length);i++)
+          if(arr.optBoolean(i,false))ids.add(LEGACY_IDS[i]);
+      }else for(int i=0;i<arr.length();i++){
+        String id=arr.optString(i,"");
+        if(yogaPose(id)!=null&&!ids.contains(id))ids.add(id);
+      }
+    }catch(Exception ignored){}
+    return ids;
+  }
   void yoga(){
-    start("艾扬格基础 · "+today);
-    add(root,label("建议每周2～3次，约15～20分钟；以动作稳定、自然呼吸为目标，不追求更深的拉伸。",14));
-    add(root,label("这是基础居家序列，不是认证教师指导。自学阶段暂不安排头倒立和肩倒立。",13));
+    start("瑜伽体式库 · "+today);
     HashMap<String,String> old=db.getYoga(today);
-    JSONArray completed=null;
-    try{completed=new JSONArray(old.getOrDefault("completed","[]"));}catch(Exception ignored){}
-    for(int i=0;i<YOGA_NAMES.length;i++){
-      CheckBox c=new CheckBox(this);c.setText((i+1)+". "+YOGA_NAMES[i]);
-      c.setTextSize(17);c.setTextColor(DARK);c.setChecked(completed!=null&&completed.optBoolean(i,false));
-      yogaChecks[i]=c;add(root,c);
-      TextView tip=label(YOGA_HINTS[i],13);tip.setTextColor(MUTED);tip.setPadding(dp(28),0,0,dp(13));add(root,tip);
-    }
-    add(root,label("今天实际练习多少分钟？",15));
+    selectedYoga.clear();selectedYoga.addAll(yogaIds(old.get("completed")));
+    yogaCategory="全部";
+    add(root,label("按分类或名称找体式。练习后勾选，集中保存；不需要跟着固定课程练。",14));
+    yogaSelectedLabel=label("",16);add(root,yogaSelectedLabel);
+    add(root,label("练习分钟数（可留空）",14));
     yogaMinutes=new EditText(this);yogaMinutes.setInputType(2);yogaMinutes.setSingleLine(true);
-    yogaMinutes.setText(old.getOrDefault("minutes","20"));add(root,yogaMinutes);
-    yogaPain=new CheckBox(this);yogaPain.setText("出现关节疼痛、头晕、麻木等不适");yogaPain.setChecked("1".equals(old.get("pain")));add(root,yogaPain);
-    yogaNotes=new EditText(this);yogaNotes.setHint("动作观察：左右差异、稳定性、呼吸、使用的瑜伽砖等");
+    yogaMinutes.setHint("选填");String minuteSaved=old.getOrDefault("minutes","");
+    yogaMinutes.setText("0".equals(minuteSaved)?"":minuteSaved);add(root,yogaMinutes);
+    yogaPain=new CheckBox(this);yogaPain.setText("本次出现疼痛、头晕或麻木");
+    yogaPain.setChecked("1".equals(old.get("pain")));add(root,yogaPain);
+    yogaNotes=new EditText(this);yogaNotes.setHint("感受、左右差异、身体对位（可不填）");
     yogaNotes.setMinLines(2);yogaNotes.setText(old.getOrDefault("note",""));add(root,yogaNotes);
-    Button save=button("保存今日瑜伽");add(root,save);save.setOnClickListener(v->saveYoga());
-    add(root,label("最近28天完成 "+db.yogaCount(28)+" 次；短期目标：稳定每周2次，持续12周。",14));
-    add(root,label("如果某动作疼痛或让你无法自然呼吸，及时退出或降低难度；不要靠强撑计时。",13));
+    Button save=button("保存本次瑜伽记录");add(root,save);save.setOnClickListener(v->saveYoga());
+    add(root,label("近28天记录："+db.yogaCount(28)+"天。参考图从手机导入后，只存在本机。",13));
+    yogaSearch=new EditText(this);yogaSearch.setSingleLine(true);yogaSearch.setHint("搜索体式名称");
+    add(root,yogaSearch);
+    yogaSearch.addTextChangedListener(new TextWatcher(){
+      public void beforeTextChanged(CharSequence x,int a,int b,int c){}
+      public void onTextChanged(CharSequence x,int a,int b,int c){refreshYogaList();}
+      public void afterTextChanged(Editable x){}
+    });
+    HorizontalScrollView scroller=new HorizontalScrollView(this);
+    LinearLayout tabs=new LinearLayout(this);tabs.setOrientation(LinearLayout.HORIZONTAL);
+    for(String cat:YOGA_CATEGORIES){
+      Button b=button(cat);tabs.addView(b,new LinearLayout.LayoutParams(dp(78),dp(50)));
+      b.setOnClickListener(v->{yogaCategory=cat;refreshYogaList();});
+    }
+    scroller.addView(tabs);add(root,scroller);
+    yogaList=column();add(root,yogaList);
+    refreshYogaList();
+    Button bottomSave=button("保存本次瑜伽记录");add(root,bottomSave);bottomSave.setOnClickListener(v->saveYoga());
     Button csv=button("导出瑜伽记录CSV");add(root,csv);csv.setOnClickListener(v->exportYoga());
+    add(root,label("头倒立、肩倒立等倒置动作仅供查阅；没有教师检查前不建议自行反复练。",13));
+  }
+  void refreshYogaList(){
+    if(yogaList==null)return;
+    yogaList.removeAllViews();
+    if(yogaSelectedLabel!=null)yogaSelectedLabel.setText("本次已选："+selectedYoga.size()+" 个体式");
+    String filter=yogaSearch==null?"":yogaSearch.getText().toString().trim().toLowerCase(Locale.ROOT);
+    int found=0;
+    for(Pose p:POSES){
+      if(!"全部".equals(yogaCategory)&&!p.category.equals(yogaCategory))continue;
+      if(!p.name.toLowerCase(Locale.ROOT).contains(filter)&&!p.id.contains(filter))continue;
+      found++;
+      LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);
+      CheckBox check=new CheckBox(this);check.setText(p.name);check.setTextColor(DARK);check.setTextSize(16);
+      check.setChecked(selectedYoga.contains(p.id));
+      check.setOnCheckedChangeListener((v,checked)->{
+        if(checked)selectedYoga.add(p.id);else selectedYoga.remove(p.id);
+        yogaSelectedLabel.setText("本次已选："+selectedYoga.size()+" 个体式");
+      });
+      row.addView(check,new LinearLayout.LayoutParams(0,dp(54),1));
+      Button detail=button(hasYogaImage(p.id)?"看图/要点":"添加图/要点");
+      detail.setTextSize(12);row.addView(detail,new LinearLayout.LayoutParams(dp(112),dp(52)));
+      detail.setOnClickListener(v->showYogaPose(p));
+      add(yogaList,row);
+      TextView kind=label(p.category+" · "+p.tip,12);kind.setTextColor(MUTED);
+      kind.setPadding(dp(12),0,dp(5),dp(10));add(yogaList,kind);
+    }
+    if(found==0)add(yogaList,label("没有匹配的体式",14));
+  }
+  boolean hasYogaImage(String id){
+    return getSharedPreferences("yoga_images",MODE_PRIVATE).contains(id);
+  }
+  void showYogaPose(Pose p){
+    LinearLayout container=column();container.setPadding(dp(18),0,dp(18),0);
+    add(container,label("分类："+p.category,14));
+    String ref=getSharedPreferences("yoga_images",MODE_PRIVATE).getString(p.id,"");
+    if(!ref.isEmpty()){
+      ImageView picture=new ImageView(this);picture.setScaleType(ImageView.ScaleType.FIT_CENTER);
+      picture.setAdjustViewBounds(true);picture.setMinimumHeight(dp(150));
+      picture.setMaxHeight(dp(330));
+      try {
+        Uri uri=Uri.parse(ref);
+        BitmapFactory.Options bounds=new BitmapFactory.Options();bounds.inJustDecodeBounds=true;
+        try(InputStream in=getContentResolver().openInputStream(uri)){BitmapFactory.decodeStream(in,null,bounds);}
+        int max=Math.max(bounds.outWidth,bounds.outHeight),sample=1;
+        while(max/sample>1200)sample*=2;
+        BitmapFactory.Options opts=new BitmapFactory.Options();opts.inSampleSize=sample;
+        try(InputStream in=getContentResolver().openInputStream(uri)){picture.setImageBitmap(BitmapFactory.decodeStream(in,null,opts));}
+        add(container,picture);
+      }catch(Exception ex){add(container,label("图片暂时无法读取，可以重新选择。",13));}
+    }else add(container,label("还没有参考图。可以从手机里选择《瑜伽之光》对应页面的照片。",13));
+    add(container,label("动作提示："+p.tip,15));
+    if(p.category.equals("倒置"))add(container,label("注意：颈部承重体式需要现场指导，不依靠一张参考图判断安全。",13));
+    ScrollView scroll=new ScrollView(this);scroll.addView(container);
+    new AlertDialog.Builder(this).setTitle(p.name).setView(scroll)
+      .setNegativeButton("关闭",null)
+      .setPositiveButton("导入/替换图片",(d,w)->pickYogaImage(p.id)).show();
+  }
+  void pickYogaImage(String id){
+    pendingYogaImageId=id;
+    Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+    i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("image/*");
+    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+    startActivityForResult(i,25);
   }
   void saveYoga(){
-    int total=0;JSONArray items=new JSONArray();
-    for(CheckBox c:yogaChecks){boolean checked=c!=null&&c.isChecked();items.put(checked);if(checked)total++;}
-    if(total==0){toast("请至少完成一个体式后再保存");return;}
-    int minutes;
-    try{minutes=Integer.parseInt(yogaMinutes.getText().toString().trim());}
-    catch(Exception e){toast("请输入有效的分钟数");return;}
-    if(minutes<1||minutes>240){toast("练习分钟数应在1～240之间");return;}
+    if(selectedYoga.isEmpty()){toast("至少勾选一个练过的体式");return;}
+    String raw=yogaMinutes.getText().toString().trim();
+    int minutes=0;
+    try{if(!raw.isEmpty())minutes=Integer.parseInt(raw);}catch(Exception e){toast("分钟数格式不正确");return;}
+    if(minutes<0||minutes>240){toast("分钟数请填0到240，或留空");return;}
+    JSONArray ids=new JSONArray();for(String id:selectedYoga)ids.put(id);
     JSONObject j=new JSONObject();
     try{
-      j.put("completed",items.toString());j.put("minutes",minutes);
+      j.put("completed",ids.toString());j.put("minutes",minutes);
       j.put("pain",yogaPain.isChecked()?"1":"0");j.put("note",yogaNotes.getText().toString());
     }catch(Exception ex){toast("保存失败："+ex.getMessage());return;}
-    Runnable save=()->{db.putYoga(today,j);toast("已保存瑜伽记录");yoga();};
-    if(db.hasYoga(today))new AlertDialog.Builder(this).setTitle("覆盖今天的瑜伽记录？")
-      .setMessage("今天的旧瑜伽数据会被替换。")
-      .setNegativeButton("取消",null).setPositiveButton("确定",(d,w)->save.run()).show();
-    else save.run();
+    Runnable action=()->{db.putYoga(today,j);toast("瑜伽记录已保存");yoga();};
+    if(db.hasYoga(today))new AlertDialog.Builder(this).setTitle("更新今天的瑜伽记录？")
+      .setMessage("将以本次勾选内容替换今天原有的瑜伽记录。")
+      .setNegativeButton("取消",null).setPositiveButton("保存",(d,w)->action.run()).show();
+    else action.run();
   }
   void exportYoga(){
     Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);
@@ -155,10 +297,9 @@ public class MainActivity extends Activity {
   void writeYogaCsv(Uri uri){
     StringBuilder out=new StringBuilder("date,pose,completed,minutes,pain,note\n");
     for(HashMap<String,String> r:db.allYoga()){
-      JSONArray a;
-      try{a=new JSONArray(r.get("completed"));}catch(Exception e){continue;}
-      for(int i=0;i<YOGA_NAMES.length;i++)if(a.optBoolean(i,false)){
-        out.append(csv(r.get("day"))).append(',').append(csv(YOGA_NAMES[i])).append(",1,");
+      for(String id:yogaIds(r.get("completed"))){
+        Pose p=yogaPose(id);if(p==null)continue;
+        out.append(csv(r.get("day"))).append(',').append(csv(p.name)).append(",1,");
         out.append(r.getOrDefault("minutes","")).append(',');
         out.append(csv(r.get("pain"))).append(',').append(csv(r.get("note"))).append('\n');
       }
@@ -198,10 +339,8 @@ public class MainActivity extends Activity {
     }
     for(HashMap<String,String> y:db.allYoga()){
       add(root,label("瑜伽 "+y.get("day")+" · "+y.get("minutes")+"分钟",16));
-      JSONArray a;
-      try{a=new JSONArray(y.get("completed"));}catch(Exception ex){a=new JSONArray();}
       ArrayList<String> done=new ArrayList<>();
-      for(int i=0;i<YOGA_NAMES.length;i++)if(a.optBoolean(i,false))done.add(YOGA_NAMES[i]);
+      for(String id:yogaIds(y.get("completed"))){Pose p=yogaPose(id);if(p!=null)done.add(p.name);}
       add(root,label("体式："+android.text.TextUtils.join("、",done),13));
       add(root,label("不适："+("1".equals(y.get("pain"))?"有":"无"),13));
       if(!y.getOrDefault("note","").isEmpty())add(root,label("观察："+y.get("note"),13));
@@ -214,6 +353,18 @@ public class MainActivity extends Activity {
   @Override protected void onActivityResult(int req,int result,Intent data){
     super.onActivityResult(req,result,data);
     if(result!=RESULT_OK||data==null||data.getData()==null)return;
+    if(req==25){
+      if(pendingYogaImageId==null)return;
+      try{
+        Uri selected=data.getData();
+        getContentResolver().takePersistableUriPermission(selected,Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        getSharedPreferences("yoga_images",MODE_PRIVATE).edit().putString(pendingYogaImageId,selected.toString()).apply();
+        toast("参考图已保存到本机");
+        refreshYogaList();
+      }catch(Exception ex){toast("图片导入失败："+ex.getMessage());}
+      finally{pendingYogaImageId=null;}
+      return;
+    }
     if(req==23){writeYogaCsv(data.getData());return;}
     if(req!=22)return;
     StringBuilder out=new StringBuilder("date,exercise,set,reps,popping,pain,note\n");
