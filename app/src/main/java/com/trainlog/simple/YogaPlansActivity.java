@@ -2,6 +2,9 @@ package com.trainlog.simple;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Bundle;
 import android.content.ContentValues;
 import android.database.Cursor;
@@ -44,6 +47,7 @@ new Plan("c1-day3","课程一｜三日课程·第3天","514","书中站姿、后
   private EditText remarks;
   private Data db;
   private String date;
+  private static final int PICK_YOGA_BOOK=43;
   private int dp(int a){return (int)(a*getResources().getDisplayMetrics().density+.5f);}
   @Override public void onCreate(Bundle state){super.onCreate(state);db=new Data(this);date=new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new Date());home();}
   private TextView text(String t,int sp){TextView v=new TextView(this);v.setText(t);v.setTextSize(sp);v.setTextColor(INK);v.setPadding(0,dp(6),0,dp(6));return v;}
@@ -61,6 +65,8 @@ new Plan("c1-day3","课程一｜三日课程·第3天","514","书中站姿、后
     selected=null;screen("《瑜伽之光》训练序列");
     add(text("按原书附录一的课程周次整理，不是自动递增的训练任务。练习后勾选实际完成项目即可。",14));
     add(text("⚠ 原书初期即包含肩倒立、犁式。你可以只查阅这些动作；没有老师确认颈肩对位前不要按书中时长自行练习。",13));
+    add(btn("从 yoga.docx 一次导入全部体式图",()->chooseDocument()));
+    add(text("首次选择你提供的 yoga.docx 即可。App 会自动读取图号、压缩并保存在本机；不上传任何数据。原文件较大，导入可能需要一些时间。",12));
     add(btn("查看已保存的序列记录",()->history()));
     for(Plan p:PLANS){
       add(btn(p.title+"  ·  "+p.poses.length+"项",()->detail(p)));
@@ -72,6 +78,7 @@ new Plan("c1-day3","课程一｜三日课程·第3天","514","书中站姿、后
     add(btn("← 返回计划库",()->home()));
     add(text("《瑜伽之光》PDF第"+p.pages+"页 · "+p.note,14));
     add(text("勾选的是实际完成项目，不必照单全做；未完成的保持空白。",13));
+    add(text("点击动作旁的“参考图”可查看文档原图与简短对位检查。",13));
     JSONArray previous=db.get(p.id,date);
     if(previous!=null){for(int i=0;i<previous.length();i++) if(previous.optInt(i,-1)>=0)checked.add(previous.optInt(i));}
     for(int i=0;i<p.poses.length;i++){
@@ -80,7 +87,14 @@ new Plan("c1-day3","课程一｜三日课程·第3天","514","书中站姿、后
       cb.setPadding(0,dp(5),0,dp(5));cb.setChecked(checked.contains(i));
       if(p.poses[i].startsWith("⚠"))cb.setTextColor(0xff9b653a);
       cb.setOnCheckedChangeListener((v,yes)->{if(yes)checked.add(n);else checked.remove(n);});
-      add(cb);
+      LinearLayout row=new LinearLayout(this);
+      row.setGravity(Gravity.CENTER_VERTICAL);
+      row.addView(cb,new LinearLayout.LayoutParams(0,-2,1f));
+      final String pose=p.poses[i];
+      Button view=btn(YogaBookImages.has(this,pose)?"参考图":"图号",()->showPose(pose));
+      view.setTextSize(12);
+      row.addView(view,new LinearLayout.LayoutParams(dp(85),dp(46)));
+      add(row);
     }
     add(text("复盘备注（可空）",14));
     remarks=new EditText(this);remarks.setMinLines(2);remarks.setHint("例如今天哪些体式不稳定、肩膝是否不适");
@@ -92,6 +106,93 @@ new Plan("c1-day3","课程一｜三日课程·第3天","514","书中站姿、后
       db.save(p.id,date,vals.toString(),remarks.getText().toString());
       Toast.makeText(this,"已保存，未勾选项目不会计为完成",Toast.LENGTH_SHORT).show();home();
     }));
+  }
+
+  private void chooseDocument(){
+    Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+    intent.addCategory(Intent.CATEGORY_OPENABLE);
+    intent.setType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+    startActivityForResult(intent,PICK_YOGA_BOOK);
+  }
+  @Override protected void onActivityResult(int request,int result,Intent data){
+    super.onActivityResult(request,result,data);
+    if(request!=PICK_YOGA_BOOK||result!=RESULT_OK||data==null||data.getData()==null)return;
+    Uri uri=data.getData();
+    new AlertDialog.Builder(this).setTitle("导入书中的参考图")
+      .setMessage("将从选中的 Word 文档中提取与训练序列匹配的约68张图，压缩保存在手机。不会修改训练记录，也不会上传文件。")
+      .setNegativeButton("取消",null)
+      .setPositiveButton("开始导入",(d,w)->runImport(uri)).show();
+  }
+  private void runImport(Uri uri){
+    final ProgressDialog dialog=new ProgressDialog(this);
+    dialog.setTitle("正在整理体式图");
+    dialog.setMessage("正在读取原始文档，请不要关闭应用…");
+    dialog.setCancelable(false);dialog.show();
+    new Thread(()->{
+      try{
+        int count=YogaBookImages.importDocument(this,uri,(done,total)->
+          runOnUiThread(()->dialog.setMessage("已整理 "+done+" / "+total+" 张图…")));
+        runOnUiThread(()->{
+          dialog.dismiss();
+          new AlertDialog.Builder(this).setTitle("导入完成")
+            .setMessage("已保存 "+count+" 张参考图。现在进入训练序列，点击动作右侧的“参考图”即可查看。")
+            .setPositiveButton("好的",(d,w)->{if(selected!=null)detail(selected);else home();}).show();
+        });
+      }catch(Exception e){
+        runOnUiThread(()->{dialog.dismiss();new AlertDialog.Builder(this)
+          .setTitle("导入未完成").setMessage(e.getMessage())
+          .setPositiveButton("确定",null).show();});
+      }
+    }).start();
+  }
+  private String poseHint(int fig){
+    switch(fig){
+      case 1:return "检查：双脚均匀着地；膝盖自然伸展；颈部与脊柱保持延长。";
+      case 2:return "检查：单脚稳定着地；两侧保持时间接近；必要时扶墙练习。";
+      case 4:return "检查：两腿稳定；先延长躯干；手可扶瑜伽砖，不必强行触地。";
+      case 6:return "检查：先拉长脊柱再扭转；后脚稳定，不用蛮力拧腰。";
+      case 8:return "检查：前膝朝向脚尖，后腿有支撑，胸部向外延伸。";
+      case 14:return "检查：前膝与脚尖方向一致；后脚站稳；不为了举手而压腰。";
+      case 15:return "检查：前膝保持稳定；两臂向两边延伸；骨盆不过度前倾。";
+      case 17:return "检查：支撑腿稳定；背和抬起的腿向两端延伸；可扶墙。";
+      case 19:return "检查：保持平衡；下方手可扶砖；不要为了转胸而扭腰。";
+      case 33:return "检查：重心由双脚承担；双腿稳定；不要把身体重量压在头顶。";
+      case 41:return "检查：优先延长胸部，避免颈部过度后仰或腰部挤压。";
+      case 60:return "检查：腰背与腿部协同发力，动作控制，不要突然弹起。";
+      case 73:return "检查：胸部向前上方延长，避免仅从腰椎挤出高度。";
+      case 74:return "检查：手掌稳定；肩膀远离耳朵，颈部不要僵硬。";
+      case 75:return "检查：手推地、背部延长；必要时屈膝，不必强压脚跟。";
+      case 78:return "检查：背部延长，腿部可先屈膝，保持自然呼吸。";
+      case 79:return "检查：避免靠甩动形成姿势，注意腰部是否受压。";
+      case 223:case 244:case 184:return "⚠ 颈部承重和进出动作有风险。参考图无法判断你的受力是否安全，建议由合格教师现场检查。";
+      case 592:return "检查：身体自然放松，不刻意屏息，也不需要强迫入静。";
+      default:return "观察：双侧是否均衡、呼吸是否自然、关节是否有挤压或疼痛。仅作自检提示，不代表动作已被纠正。";
+    }
+  }
+  private void showPose(String pose){
+    int figure=YogaBookImages.firstFigure(pose);
+    Bitmap bitmap=YogaBookImages.load(this,pose);
+    LinearLayout l=new LinearLayout(this);
+    l.setOrientation(LinearLayout.VERTICAL);
+    l.setPadding(dp(18),dp(10),dp(18),dp(14));
+    TextView t=text(pose.replace("⚠ ",""),17);t.setTypeface(null,Typeface.BOLD);
+    l.addView(t);
+    if(bitmap!=null){
+      ImageView img=new ImageView(this);
+      img.setAdjustViewBounds(true);
+      img.setScaleType(ImageView.ScaleType.FIT_CENTER);
+      img.setImageBitmap(bitmap);
+      l.addView(img,new LinearLayout.LayoutParams(-1,-2));
+    }else{
+      l.addView(text("参考图暂未导入。请返回序列首页，选择“从 yoga.docx 一次导入全部体式图”。",13));
+    }
+    l.addView(text("动作自检（非书中原文）",14));
+    l.addView(text(poseHint(figure),14));
+    if(figure>0)l.addView(text("文档参考图号："+figure,12));
+    ScrollView scroll=new ScrollView(this);scroll.addView(l);
+    new AlertDialog.Builder(this).setView(scroll)
+      .setPositiveButton("关闭",null).show();
   }
   private void history(){
     screen("序列练习记录");add(btn("← 返回计划库",()->home()));
