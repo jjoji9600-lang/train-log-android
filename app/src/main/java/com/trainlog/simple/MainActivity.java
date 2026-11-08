@@ -74,7 +74,7 @@ public class MainActivity extends Activity {
   static final int GREEN=0xff176b59, DARK=0xff21332f, MUTED=0xff687b74, BG=0xfff6f7f5;
   DB db;
   LinearLayout root;
-  EditText[][] counts=new EditText[3][3];
+  TextView[][] counts=new TextView[3][3];
   CheckBox popping,pain;
   final Set<String> selectedYoga=new LinkedHashSet<>();
   String yogaCategory="全部", pendingYogaImageId=null;
@@ -106,6 +106,7 @@ public class MainActivity extends Activity {
   void record(){
     start("今天 · "+today);
     HashMap<String,String> existing=db.get(today);
+    add(root,label("做完一组，点右侧 + 或 − 调整次数；点击数字可以直接输入。未练的组保持0。",13));
     for(int e=0;e<3;e++){
       add(root,label(NAMES[e],17));
       JSONArray saved=null;
@@ -114,11 +115,29 @@ public class MainActivity extends Activity {
         LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);
         TextView name=label("第 "+(k+1)+" 组",15);
         row.addView(name,new LinearLayout.LayoutParams(0,dp(50),1));
-        EditText input=new EditText(this);input.setSingleLine(true);
-        input.setInputType(2);input.setGravity(Gravity.CENTER);
-        input.setText(saved!=null&&k<saved.length()?String.valueOf(saved.optInt(k,0)):"0");
-        counts[e][k]=input;
-        row.addView(input,new LinearLayout.LayoutParams(dp(110),dp(50)));add(root,row);
+        LinearLayout stepper=new LinearLayout(this);stepper.setGravity(Gravity.CENTER_VERTICAL);
+        TextView number=label(saved!=null&&k<saved.length()?String.valueOf(saved.optInt(k,0)):"0",19);
+        number.setGravity(Gravity.CENTER);number.setTextColor(GREEN);
+        counts[e][k]=number;
+        Button minus=button("−");minus.setTextSize(18);minus.setMinWidth(0);minus.setMinimumWidth(0);
+        Button plus=button("+");plus.setTextSize(18);plus.setMinWidth(0);plus.setMinimumWidth(0);
+        minus.setOnClickListener(v->{int n=Integer.parseInt(number.getText().toString());number.setText(String.valueOf(Math.max(0,n-1)));});
+        plus.setOnClickListener(v->{int n=Integer.parseInt(number.getText().toString());number.setText(String.valueOf(Math.min(999,n+1)));});
+        number.setOnClickListener(v->{
+          EditText editor=new EditText(this);editor.setInputType(2);editor.setSingleLine(true);
+          editor.setText(number.getText());editor.setSelectAllOnFocus(true);
+          new AlertDialog.Builder(this).setTitle("修改本组次数").setView(editor)
+            .setNegativeButton("取消",null).setPositiveButton("确定",(d,w)->{
+              try{int val=Integer.parseInt(editor.getText().toString().trim());
+                if(val<0||val>999)throw new NumberFormatException();
+                number.setText(String.valueOf(val));
+              }catch(Exception ex){toast("请输入0～999之间的次数");}
+            }).show();
+        });
+        stepper.addView(minus,new LinearLayout.LayoutParams(dp(45),dp(46)));
+        stepper.addView(number,new LinearLayout.LayoutParams(dp(52),dp(46)));
+        stepper.addView(plus,new LinearLayout.LayoutParams(dp(45),dp(46)));
+        row.addView(stepper);add(root,row);
       }
     }
     add(root,label("关节状况",17));
