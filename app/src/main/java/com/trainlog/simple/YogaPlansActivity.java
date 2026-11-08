@@ -64,10 +64,10 @@ new Plan("c1-day3","课程一｜三日课程·第3天","514","书中站姿、后
   }
   private void home(){
     selected=null;screen("《瑜伽之光》训练序列");
-    add(text("按原书附录一的课程周次整理，不是自动递增的训练任务。练习后勾选实际完成项目即可。",14));
+    add(text("已内置68张来自你提供文档的体式参考图。无需额外导入，打开任何训练序列即可看到缩略图，点图可放大。",14));
     add(text("⚠ 原书初期即包含肩倒立、犁式。你可以只查阅这些动作；没有老师确认颈肩对位前不要按书中时长自行练习。",13));
-    add(btn("从 yoga.docx 一次导入全部体式图",()->chooseDocument()));
-    add(text("首次选择你提供的 yoga.docx 即可。App 会自动读取图号、压缩并保存在本机；不上传任何数据。原文件较大，导入可能需要一些时间。",12));
+    add(btn("可选：从 yoga.docx 重新导入或替换图片",()->chooseDocument()));
+    add(text("图片已预装。只有希望重新导入时，才需要选择原始 Word 文档。",12));
     add(btn("查看已保存的序列记录",()->history()));
     for(Plan p:PLANS){
       add(btn(p.title+"  ·  "+p.poses.length+"项",()->detail(p)));
@@ -79,7 +79,7 @@ new Plan("c1-day3","课程一｜三日课程·第3天","514","书中站姿、后
     add(btn("← 返回计划库",()->home()));
     add(text("《瑜伽之光》PDF第"+p.pages+"页 · "+p.note,14));
     add(text("勾选的是实际完成项目，不必照单全做；未完成的保持空白。",13));
-    add(text("点击动作旁的“参考图”可查看文档原图与简短对位检查。",13));
+    add(text("直接看动作右侧的缩略图；点击图片可放大查看，并阅读简短的对位检查。",13));
     JSONArray previous=db.get(p.id,date);
     if(previous!=null){for(int i=0;i<previous.length();i++) if(previous.optInt(i,-1)>=0)checked.add(previous.optInt(i));}
     for(int i=0;i<p.poses.length;i++){
@@ -92,9 +92,20 @@ new Plan("c1-day3","课程一｜三日课程·第3天","514","书中站姿、后
       row.setGravity(Gravity.CENTER_VERTICAL);
       row.addView(cb,new LinearLayout.LayoutParams(0,-2,1f));
       final String pose=p.poses[i];
-      Button view=btn(YogaBookImages.has(this,pose)?"参考图":"图号",()->showPose(pose));
-      view.setTextSize(12);
-      row.addView(view,new LinearLayout.LayoutParams(dp(85),dp(46)));
+      Bitmap thumbnail=YogaBookImages.load(this,pose);
+      if(thumbnail!=null){
+        ImageView preview=new ImageView(this);
+        preview.setImageBitmap(thumbnail);
+        preview.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        preview.setContentDescription("点击查看"+pose+"参考图");
+        preview.setPadding(dp(3),dp(3),dp(3),dp(3));
+        row.addView(preview,new LinearLayout.LayoutParams(dp(86),dp(88)));
+        preview.setOnClickListener(v->showPose(pose));
+      }else{
+        Button view=btn("查看",()->showPose(pose));
+        view.setTextSize(12);
+        row.addView(view,new LinearLayout.LayoutParams(dp(78),dp(46)));
+      }
       add(row);
     }
     add(text("复盘备注（可空）",14));
