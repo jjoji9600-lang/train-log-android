@@ -141,13 +141,8 @@ public final class AnatomyActivity extends Activity {
     add(text("资料：《解剖.docx》第6–11章。原文是按身体姿势分类的解剖说明，不是按周训练课表。以下4套序列由App根据章节组织。",14));
     add(text("建议优先从A或B开始；不以拉伸深度衡量好坏。出现膝、腰、颈等关节疼痛时停止相应动作。",13));
     int ready=AnatomyImageStore.readyCount(this);
-    if(ready<18){
-      add(text("配图状态："+ready+"/18 个体式。点击下方按钮选择你提供的《解剖.docx》，一次导入全部36张动作与解剖图。",13));
-      add(button("导入《解剖.docx》配图",this::chooseDocx));
-    }else{
-      add(text("18个体式的动作图与解剖图已经安装到本机，可以直接浏览。",13));
-      add(button("重新导入／替换解剖图",this::chooseDocx));
-    }
+    add(text("配图：已内置 "+ready+"/18 个体式，每个2张参考图。无需选择 Word 文档，点击缩略图直接查看。",13));
+    if(ready<18)add(text("有图片资源加载失败，请检查本版本 APK 是否完整。",13));
     add(button("查看解剖训练历史",this::history));
     for(Plan p:PLANS){
       add(button(p.name+" · "+p.ids.length+"个动作",()->open(p)));
@@ -166,7 +161,7 @@ public final class AnatomyActivity extends Activity {
     plan=p;completed.clear();
     JSONArray old=db.saved(p.id,day);if(old!=null)for(int i=0;i<old.length();i++)completed.add(old.optInt(i,-1));
     page(p.name);add(button("← 返回",this::home));add(text(p.desc,14));
-    add(text("点右边的图片或“详情”，查看动作图、肌肉/关节图和练习方法；练完勾选实际完成项目。",13));
+    add(text("点击右侧动作缩略图，查看体式图、解剖／关节说明图和练习方法。练完勾选完成动作。",13));
     for(int i=0;i<p.ids.length;i++){
       final int index=i;Move m=find(p.ids[i]);if(m==null)continue;
       LinearLayout line=new LinearLayout(this);line.setGravity(Gravity.CENTER_VERTICAL);
@@ -214,10 +209,10 @@ public final class AnatomyActivity extends Activity {
       Runnable anatomy=()->{
         Bitmap bm=AnatomyImageStore.load(this,m.id,1,1100);
         if(bm!=null)image.setImageBitmap(bm);
-        caption.setText("解剖示意（来自你提供的《解剖.docx》）");
+        caption.setText("解剖图或肌肉／关节动作表（来自《解剖.docx》）");
       };
       Button first=button("动作参考图",posture);
-      Button second=button("肌肉／关节图",anatomy);
+      Button second=button("解剖图／表",anatomy);
       first.setTextSize(12);second.setTextSize(12);
       tabs.addView(first,new LinearLayout.LayoutParams(0,dp(49),1f));
       tabs.addView(second,new LinearLayout.LayoutParams(0,dp(49),1f));
@@ -226,14 +221,14 @@ public final class AnatomyActivity extends Activity {
       content.addView(image,new LinearLayout.LayoutParams(-1,-2));
       posture.run();
     }else{
-      TextView missing=text("还未导入图片：请返回“解剖”首页，选择《解剖.docx》一次导入配图。",13);
+      TextView missing=text("图片资源读取失败，请检查安装包。",13);
       missing.setTextColor(MUTED);content.addView(missing);
     }
     for(String[] section:new String[][]{{"书中解剖信息（提要）",m.why},{"练习方式（区分原书与App建议）",m.how},{"呼吸与观察",m.breath}}){
       TextView h=text(section[0],16);h.setTypeface(null,Typeface.BOLD);content.addView(h);
       content.addView(text(section[1],14));
     }
-    content.addView(text("说明：提要不是医学诊断，也不替代现场体式纠正。",12));
+    content.addView(text("图1为姿势或肌肉动作示意；图2可能是骨骼／肌肉关节动作表，具体以原书内容为准。提要不能替代现场体式纠正。",12));
     ScrollView sc=new ScrollView(this);sc.addView(content);
     new AlertDialog.Builder(this).setView(sc).setPositiveButton("关闭",null).show();
   }
