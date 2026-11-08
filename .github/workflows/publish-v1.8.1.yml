@@ -1,0 +1,42 @@
+name: Publish TrainLog v1.8.1 Release
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-v1.8.1.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get verified v1.8.1 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist
+          gh run download 42484260610 --repo "${{ github.repository }}" --name TrainLog-debug-apk --dir dist
+          test -s dist/app-debug.apk
+          mv dist/app-debug.apk dist/TrainLog-v1.8.1.apk
+          unzip -l dist/TrainLog-v1.8.1.apk | grep 'assets/anatomy_images/part_00.json'
+          unzip -l dist/TrainLog-v1.8.1.apk | grep 'assets/anatomy_images/part_04.json'
+          sha256sum dist/TrainLog-v1.8.1.apk
+      - name: Publish tagged release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v1.8.1 --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload v1.8.1 dist/TrainLog-v1.8.1.apk --repo "${{ github.repository }}" --clobber
+          else
+            gh release create v1.8.1 dist/TrainLog-v1.8.1.apk \
+              --repo "${{ github.repository }}" \
+              --target af7f11d073c28a06c73630e693bd257497d39060 \
+              --title "TrainLog 1.8.1 · 解剖配图修复版" \
+              --notes "修复 v1.8.0《解剖.docx》图片未内置的问题。
+          - 18 个解剖体式、36 张图已内置，无需导入 Word。
+          - 序列中显示动作缩略图，详情可切换动作图／解剖图。
+          - 原力量训练、瑜伽课程和本地记录保持不变。
+          
+          本版本仍采用 GitHub Actions Debug 自签名证书，不保证与旧版 APK 签名一致；有训练记录的用户请先备份，不要直接卸载旧版。"
+          fi
