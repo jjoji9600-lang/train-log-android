@@ -96,12 +96,22 @@ public class MainActivity extends Activity {
     ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setBackgroundColor(BG);
     root=column();root.setPadding(dp(16),dp(20),dp(16),dp(35));scroll.addView(root);setContentView(scroll);
     add(root,label("练一练",27));add(root,label("训练日志 · 安全优先 · 离线保存",13));
-    LinearLayout nav=new LinearLayout(this);
-    for(String item:new String[]{"力量","瑜伽","序列","趋势","历史"}){
-      Button b=button(item);b.setTextSize(12);nav.addView(b,new LinearLayout.LayoutParams(0,dp(52),1));
-      b.setOnClickListener(v->{if(item.equals("力量"))record();else if(item.equals("瑜伽"))yoga();else if(item.equals("序列"))startActivity(new Intent(this,YogaPlansActivity.class));else if(item.equals("趋势"))progress();else history();});
+    HorizontalScrollView navScroller=new HorizontalScrollView(this);
+    navScroller.setHorizontalScrollBarEnabled(false);
+    LinearLayout nav=new LinearLayout(this);nav.setOrientation(LinearLayout.HORIZONTAL);
+    for(String item:new String[]{"力量","瑜伽","序列","解剖","趋势","历史"}){
+      Button b=button(item);b.setTextSize(12);
+      nav.addView(b,new LinearLayout.LayoutParams(dp(72),dp(50)));
+      b.setOnClickListener(v->{
+        if(item.equals("力量"))record();
+        else if(item.equals("瑜伽"))yoga();
+        else if(item.equals("序列"))startActivity(new Intent(this,YogaPlansActivity.class));
+        else if(item.equals("解剖"))startActivity(new Intent(this,AnatomyActivity.class));
+        else if(item.equals("趋势"))progress();
+        else history();
+      });
     }
-    add(root,nav);add(root,label(title,20));
+    navScroller.addView(nav);add(root,navScroller);add(root,label(title,20));
   }
   void record(){
     start("今天 · "+today);
