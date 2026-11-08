@@ -20,7 +20,7 @@ final class YogaBookImages {
     1,1,2,2,4,3,6,4,8,5,10,6,14,8,15,11,17,12,19,13,26,18,
     33,22,35,24,39,25,41,26,42,27,44,28,46,29,48,30,49,31,56,34,
     60,38,63,41,73,47,74,49,75,50,78,52,79,54,80,55,83,57,89,60,
-    96,65,97,68,102,70,104,72,107,75,108,76,109,77,113,80,125,92,
+    96,65,97,68,102,70,104,72,107,75,108,76,109,78,113,80,125,92,
     127,93,135,100,139,103,144,107,160,114,168,129,184,137,202,155,
     208,160,211,163,218,165,223,166,235,176,236,177,244,182,246,183,
     247,185,249,186,250,187,251,188,261,197,269,201,274,205,275,208,
@@ -28,6 +28,9 @@ final class YogaBookImages {
   };
   private static final Pattern FIGURE=Pattern.compile("图\\s*(\\d+)");
   static int firstFigure(String title){
+    if(title==null)return -1;
+    if(title.contains("乌加依"))return 597;
+    if(title.contains("经络清洁")||title.contains("经络净化"))return 599;
     Matcher m=FIGURE.matcher(title);
     return m.find()?Integer.parseInt(m.group(1)):-1;
   }
@@ -37,6 +40,7 @@ final class YogaBookImages {
   }
   static boolean has(Context ctx,String text){return path(ctx,firstFigure(text)).isFile() || YogaBundledImages.has(ctx,text);}
   static Bitmap load(Context ctx,String text){
+    if(firstFigure(text)==109)return YogaBundledImages.load(ctx,text);
     File f=path(ctx,firstFigure(text));if(!f.isFile())return YogaBundledImages.load(ctx,text);
     BitmapFactory.Options o=new BitmapFactory.Options();o.inJustDecodeBounds=true;
     BitmapFactory.decodeFile(f.getAbsolutePath(),o);
