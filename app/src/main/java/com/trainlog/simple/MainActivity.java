@@ -325,7 +325,16 @@ public class MainActivity extends Activity {
         add(container,label("《瑜伽之光》内置参考图 · 图"+figure,12));
       }else add(container,label("该体式本版暂无内置参考图，可从手机选择替换。",13));
     }
-    add(container,label("动作提示："+p.tip,15));
+    int sourceFigure=builtInYogaFigure(p.id);
+    String original=sourceFigure>0?YogaBookOriginal.text(this,sourceFigure):"";
+    if(!original.isEmpty()){
+      add(container,label("《瑜伽之光》功法原文（DOCX识别文本）",16));
+      TextView source=label(original,14);source.setTextIsSelectable(true);add(container,source);
+      add(container,label("原文可能存在OCR错字或缺行，请结合原书图片核对。",12));
+    }else{
+      add(container,label("此体式暂未成功匹配功法原文。",12));
+    }
+    add(container,label("辅助提示（非书中原文）："+p.tip,14));
     if(p.category.equals("倒置"))add(container,label("注意：颈部承重体式需要现场指导，不依靠一张参考图判断安全。",13));
     ScrollView scroll=new ScrollView(this);scroll.addView(container);
     new AlertDialog.Builder(this).setTitle(p.name).setView(scroll)
