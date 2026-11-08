@@ -176,7 +176,7 @@ public class MainActivity extends Activity {
     HashMap<String,String> old=db.getYoga(today);
     selectedYoga.clear();selectedYoga.addAll(yogaIds(old.get("completed")));
     yogaCategory="全部";
-    add(root,label("按分类或名称找体式。练习后勾选，集中保存；不需要跟着固定课程练。",14));
+    add(root,label("按分类或名称找体式。已预装常用体式参考图；点“看图/要点”直接查看，不需要自己导图。",14));
     yogaSelectedLabel=label("",16);add(root,yogaSelectedLabel);
     add(root,label("练习分钟数（可留空）",14));
     yogaMinutes=new EditText(this);yogaMinutes.setInputType(2);yogaMinutes.setSingleLine(true);
@@ -226,7 +226,7 @@ public class MainActivity extends Activity {
         yogaSelectedLabel.setText("本次已选："+selectedYoga.size()+" 个体式");
       });
       row.addView(check,new LinearLayout.LayoutParams(0,dp(54),1));
-      Button detail=button(hasYogaImage(p.id)?"看图/要点":"添加图/要点");
+      Button detail=button((hasYogaImage(p.id)||builtInYogaFigure(p.id)>0)?"看图/要点":"添加图/要点");
       detail.setTextSize(12);row.addView(detail,new LinearLayout.LayoutParams(dp(112),dp(52)));
       detail.setOnClickListener(v->showYogaPose(p));
       add(yogaList,row);
@@ -237,6 +237,43 @@ public class MainActivity extends Activity {
   }
   boolean hasYogaImage(String id){
     return getSharedPreferences("yoga_images",MODE_PRIVATE).contains(id);
+  }
+  int builtInYogaFigure(String id){
+    switch(id){
+      case "tadasana": return 1;
+      case "utkatasana": return 42;
+      case "trikonasana": return 4;
+      case "parivrtta_trikonasana": return 6;
+      case "utthita_parsvakonasana": return 8;
+      case "parivrtta_parsvakonasana": return 10;
+      case "virabhadrasana1": return 14;
+      case "virabhadrasana2": return 15;
+      case "virabhadrasana3": return 17;
+      case "ardha_chandrasana": return 19;
+      case "parsvottanasana": return 26;
+      case "prasarita_padottanasana": return 33;
+      case "uttanasana": return 48;
+      case "adho_mukha_svanasana": return 75;
+      case "baddha_konasana": return 102;
+      case "virasana": return 89;
+      case "gomukhasana": return 80;
+      case "paschimottanasana": return 160;
+      case "janu_sirsasana": return 127;
+      case "trianga_mukhaikapada": return 139;
+      case "marichyasana1": return 144;
+      case "marichyasana3": return 303;
+      case "ardha_matsyendrasana": return 311;
+      case "savasana": return 592;
+      case "salabhasana": return 60;
+      case "bhujangasana": return 73;
+      case "urdhva_mukha_svanasana": return 74;
+      case "ustrasana": return 41;
+      case "dhanurasana": return 63;
+      case "halasana": return 244;
+      case "salamba_sarvangasana": return 223;
+      case "salamba_sirsasana": return 184;
+      default:return -1;
+    }
   }
   void showYogaPose(Pose p){
     LinearLayout container=column();container.setPadding(dp(18),0,dp(18),0);
@@ -256,7 +293,19 @@ public class MainActivity extends Activity {
         try(InputStream in=getContentResolver().openInputStream(uri)){picture.setImageBitmap(BitmapFactory.decodeStream(in,null,opts));}
         add(container,picture);
       }catch(Exception ex){add(container,label("图片暂时无法读取，可以重新选择。",13));}
-    }else add(container,label("还没有参考图。可以从手机里选择《瑜伽之光》对应页面的照片。",13));
+    }else{
+      int figure=builtInYogaFigure(p.id);
+      Bitmap built=figure>0?YogaBundledImages.load(this,"图"+figure):null;
+      if(built!=null){
+        ImageView image=new ImageView(this);
+        image.setAdjustViewBounds(true);
+        image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        image.setMaxHeight(dp(400));
+        image.setImageBitmap(built);
+        add(container,image);
+        add(container,label("《瑜伽之光》内置参考图 · 图"+figure,12));
+      }else add(container,label("该体式本版暂无内置参考图，可从手机选择替换。",13));
+    }
     add(container,label("动作提示："+p.tip,15));
     if(p.category.equals("倒置"))add(container,label("注意：颈部承重体式需要现场指导，不依靠一张参考图判断安全。",13));
     ScrollView scroll=new ScrollView(this);scroll.addView(container);
