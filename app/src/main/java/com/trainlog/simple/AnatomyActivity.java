@@ -6,6 +6,8 @@ import android.content.*;
 import android.database.*;
 import android.database.sqlite.*;
 import android.graphics.Typeface;
+import android.graphics.Bitmap;
+import android.net.Uri;
 import android.view.*;
 import android.widget.*;
 import org.json.*;
@@ -119,6 +121,7 @@ public final class AnatomyActivity extends Activity {
   Plan plan;
   final Set<Integer> completed=new HashSet<>();
   EditText note;
+  static final int SELECT_DOCX=47;
   int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
   @Override public void onCreate(Bundle state){super.onCreate(state);db=new Store(this);day=new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new Date());home();}
   TextView text(String s,int n){TextView t=new TextView(this);t.setText(s);t.setTextColor(INK);t.setTextSize(n);t.setPadding(0,dp(6),0,dp(6));return t;}
@@ -137,6 +140,14 @@ public final class AnatomyActivity extends Activity {
     plan=null;page("瑜伽解剖 · 训练与动作");
     add(text("资料：《解剖.docx》第6–11章。原文是按身体姿势分类的解剖说明，不是按周训练课表。以下4套序列由App根据章节组织。",14));
     add(text("建议优先从A或B开始；不以拉伸深度衡量好坏。出现膝、腰、颈等关节疼痛时停止相应动作。",13));
+    int ready=AnatomyImageStore.readyCount(this);
+    if(ready<18){
+      add(text("配图状态："+ready+"/18 个体式。点击下方按钮选择你提供的《解剖.docx》，一次导入全部36张动作与解剖图。",13));
+      add(button("导入《解剖.docx》配图",this::chooseDocx));
+    }else{
+      add(text("18个体式的动作图与解剖图已经安装到本机，可以直接浏览。",13));
+      add(button("重新导入／替换解剖图",this::chooseDocx));
+    }
     add(button("查看解剖训练历史",this::history));
     for(Plan p:PLANS){
       add(button(p.name+" · "+p.ids.length+"个动作",()->open(p)));
@@ -155,15 +166,27 @@ public final class AnatomyActivity extends Activity {
     plan=p;completed.clear();
     JSONArray old=db.saved(p.id,day);if(old!=null)for(int i=0;i<old.length();i++)completed.add(old.optInt(i,-1));
     page(p.name);add(button("← 返回",this::home));add(text(p.desc,14));
-    add(text("点击“解剖说明”查看身体机制、练习方法与呼吸；练完勾选实际完成项目。",13));
+    add(text("点右边的图片或“详情”，查看动作图、肌肉/关节图和练习方法；练完勾选实际完成项目。",13));
     for(int i=0;i<p.ids.length;i++){
       final int index=i;Move m=find(p.ids[i]);if(m==null)continue;
       LinearLayout line=new LinearLayout(this);line.setGravity(Gravity.CENTER_VERTICAL);
       CheckBox c=new CheckBox(this);c.setText((i+1)+". "+m.cn);c.setTextSize(15);c.setChecked(completed.contains(i));
       c.setOnCheckedChangeListener((v,checked)->{if(checked)completed.add(index);else completed.remove(index);});
       line.addView(c,new LinearLayout.LayoutParams(0,dp(56),1));
-      Button more=button("解剖说明",()->details(m));more.setTextSize(12);
-      line.addView(more,new LinearLayout.LayoutParams(dp(100),dp(52)));add(line);
+      if(AnatomyImageStore.ready(this,m.id)){
+        Bitmap thumbnail=AnatomyImageStore.load(this,m.id,0,270);
+        if(thumbnail!=null){
+          ImageView image=new ImageView(this);
+          image.setImageBitmap(thumbnail);image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+          image.setContentDescription("查看"+m.cn+"体式插图");
+          image.setOnClickListener(v->details(m));
+          line.addView(image,new LinearLayout.LayoutParams(dp(92),dp(82)));
+        }
+      }else{
+        Button more=button("详情",()->details(m));more.setTextSize(12);
+        line.addView(more,new LinearLayout.LayoutParams(dp(76),dp(52)));
+      }
+      add(line);
     }
     add(text("训练记录（选填）",15));
     note=new EditText(this);note.setHint("哪里稳定？哪里代偿？呼吸是否受限？");note.setMinLines(2);note.setText(db.note(p.id,day));add(note);
@@ -178,6 +201,34 @@ public final class AnatomyActivity extends Activity {
     LinearLayout content=new LinearLayout(this);content.setOrientation(1);content.setPadding(dp(18),dp(8),dp(18),dp(10));
     TextView title=text(m.cn+" / "+m.latin,18);title.setTypeface(null,Typeface.BOLD);
     content.addView(title);content.addView(text("分类："+m.group+"  ·  来源：解剖.docx",12));
+    if(AnatomyImageStore.ready(this,m.id)){
+      LinearLayout tabs=new LinearLayout(this);tabs.setGravity(Gravity.CENTER);
+      ImageView image=new ImageView(this);
+      image.setAdjustViewBounds(true);image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+      TextView caption=text("",12);
+      Runnable posture=()->{
+        Bitmap bm=AnatomyImageStore.load(this,m.id,0,1100);
+        if(bm!=null)image.setImageBitmap(bm);
+        caption.setText("动作外形（来自你提供的《解剖.docx》）");
+      };
+      Runnable anatomy=()->{
+        Bitmap bm=AnatomyImageStore.load(this,m.id,1,1100);
+        if(bm!=null)image.setImageBitmap(bm);
+        caption.setText("解剖示意（来自你提供的《解剖.docx》）");
+      };
+      Button first=button("动作参考图",posture);
+      Button second=button("肌肉／关节图",anatomy);
+      first.setTextSize(12);second.setTextSize(12);
+      tabs.addView(first,new LinearLayout.LayoutParams(0,dp(49),1f));
+      tabs.addView(second,new LinearLayout.LayoutParams(0,dp(49),1f));
+      content.addView(tabs);
+      content.addView(caption);
+      content.addView(image,new LinearLayout.LayoutParams(-1,-2));
+      posture.run();
+    }else{
+      TextView missing=text("还未导入图片：请返回“解剖”首页，选择《解剖.docx》一次导入配图。",13);
+      missing.setTextColor(MUTED);content.addView(missing);
+    }
     for(String[] section:new String[][]{{"书中解剖信息（提要）",m.why},{"练习方式（区分原书与App建议）",m.how},{"呼吸与观察",m.breath}}){
       TextView h=text(section[0],16);h.setTypeface(null,Typeface.BOLD);content.addView(h);
       content.addView(text(section[1],14));
@@ -185,6 +236,44 @@ public final class AnatomyActivity extends Activity {
     content.addView(text("说明：提要不是医学诊断，也不替代现场体式纠正。",12));
     ScrollView sc=new ScrollView(this);sc.addView(content);
     new AlertDialog.Builder(this).setView(sc).setPositiveButton("关闭",null).show();
+  }
+  void chooseDocx(){
+    Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+    intent.addCategory(Intent.CATEGORY_OPENABLE);
+    intent.setType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+    startActivityForResult(intent,SELECT_DOCX);
+  }
+  @Override protected void onActivityResult(int request,int result,Intent data){
+    super.onActivityResult(request,result,data);
+    if(request!=SELECT_DOCX||result!=RESULT_OK||data==null||data.getData()==null)return;
+    Uri file=data.getData();
+    new AlertDialog.Builder(this).setTitle("导入解剖配图")
+      .setMessage("会从这份 Word 中按动作名称对应18个体式，每个体式提取动作和解剖两张图。图片只保存在手机，不连接网络。")
+      .setNegativeButton("取消",null).setPositiveButton("开始",(dialog,which)->importImages(file)).show();
+  }
+  void importImages(Uri file){
+    ProgressDialog progress=new ProgressDialog(this);
+    progress.setTitle("正在导入解剖配图");progress.setMessage("正在读取文件...");
+    progress.setCancelable(false);progress.show();
+    new Thread(()->{
+      try{
+        int count=AnatomyImageStore.importDocx(this,file,(done,total)->
+          runOnUiThread(()->progress.setMessage("图片 "+done+"/"+total+" 已处理")));
+        runOnUiThread(()->{
+          progress.dismiss();
+          new AlertDialog.Builder(this).setTitle("图片准备完成")
+            .setMessage("已为 "+count+" 个体式保存动作图和解剖图。现在可以在训练计划中点击缩略图查看。")
+            .setPositiveButton("查看",(d,w)->{if(plan!=null)open(plan);else home();}).show();
+        });
+      }catch(Exception ex){
+        runOnUiThread(()->{
+          progress.dismiss();
+          new AlertDialog.Builder(this).setTitle("导入失败").setMessage(ex.getMessage())
+            .setPositiveButton("确定",null).show();
+        });
+      }
+    }).start();
   }
   void history(){
     page("解剖训练历史");add(button("返回",this::home));
