@@ -35,9 +35,9 @@ final class YogaBookImages {
     File dir=new File(ctx.getFilesDir(),"yoga_book_figures");
     return new File(dir,figure+".jpg");
   }
-  static boolean has(Context ctx,String text){return path(ctx,firstFigure(text)).isFile();}
+  static boolean has(Context ctx,String text){return path(ctx,firstFigure(text)).isFile() || YogaBundledImages.has(ctx,text);}
   static Bitmap load(Context ctx,String text){
-    File f=path(ctx,firstFigure(text));if(!f.isFile())return null;
+    File f=path(ctx,firstFigure(text));if(!f.isFile())return YogaBundledImages.load(ctx,text);
     BitmapFactory.Options o=new BitmapFactory.Options();o.inJustDecodeBounds=true;
     BitmapFactory.decodeFile(f.getAbsolutePath(),o);
     o.inJustDecodeBounds=false;o.inSampleSize=Math.max(1,Math.max(o.outWidth,o.outHeight)/1600);
