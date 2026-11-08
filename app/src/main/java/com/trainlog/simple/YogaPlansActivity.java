@@ -79,7 +79,7 @@ new Plan("c1-day3","课程一｜三日课程·第3天","514","书中站姿、后
     add(btn("← 返回计划库",()->home()));
     add(text("《瑜伽之光》PDF第"+p.pages+"页 · "+p.note,14));
     add(text("勾选的是实际完成项目，不必照单全做；未完成的保持空白。",13));
-    add(text("直接看动作右侧的缩略图；点击图片可放大查看，并阅读简短的对位检查。",13));
+    add(text("点击缩略图阅读书中“功法”原文；OCR文字与额外安全提示会明确区分。",13));
     JSONArray previous=db.get(p.id,date);
     if(previous!=null){for(int i=0;i<previous.length();i++) if(previous.optInt(i,-1)>=0)checked.add(previous.optInt(i));}
     for(int i=0;i<p.poses.length;i++){
@@ -196,11 +196,25 @@ new Plan("c1-day3","课程一｜三日课程·第3天","514","书中站姿、后
       img.setScaleType(ImageView.ScaleType.FIT_CENTER);
       img.setImageBitmap(bitmap);
       l.addView(img,new LinearLayout.LayoutParams(-1,-2));
+      if(figure==599)l.addView(text("参考图599展示的是鼻孔呼吸的手势，不是气息流动示意。",12));
     }else{
-      l.addView(text("参考图暂未导入。请返回序列首页，选择“从 yoga.docx 一次导入全部体式图”。",13));
+      l.addView(text("这项目前未匹配到原书照片；下面仍可查看书中的功法文字。",13));
     }
-    l.addView(text("动作自检（非书中原文）",14));
-    l.addView(text(poseHint(figure),14));
+    String original=YogaBookOriginal.text(this,figure);
+    l.addView(text("《瑜伽之光》功法原文（DOCX文字识别摘录）",16));
+    if(original!=null&&!original.isEmpty()){
+      TextView src=text(original,14);
+      src.setTextIsSelectable(true);
+      l.addView(src);
+      l.addView(text("以上是你提供文档中的识别文字，可能存在OCR错字或缺行，重要动作请结合原书图片核对。",12));
+    }else{
+      l.addView(text("该动作暂未成功提取到功法原文，未用其他资料代替。",13));
+    }
+    if(pose.startsWith("⚠") || pose.contains("肩倒立") || pose.contains("头倒立") || pose.contains("犁式")){
+      l.addView(text("额外安全提醒（非书中原文）：涉及颈部承重，建议由合格教师现场检查受力和进出动作。",13));
+    } else if(pose.contains("经络清洁")||pose.contains("乌加依")){
+      l.addView(text("额外安全提醒（非书中原文）：初学者不宜自行练习长时间屏息或收束法，出现头晕及时停止。",13));
+    }
     if(figure>0)l.addView(text("文档参考图号："+figure,12));
     ScrollView scroll=new ScrollView(this);scroll.addView(l);
     new AlertDialog.Builder(this).setView(scroll)
