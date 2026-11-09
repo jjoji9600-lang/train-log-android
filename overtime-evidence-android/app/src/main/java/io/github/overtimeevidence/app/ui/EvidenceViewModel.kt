@@ -6,6 +6,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.overtimeevidence.app.data.EvidenceKind
 import io.github.overtimeevidence.app.data.EvidenceRepository
+import io.github.overtimeevidence.app.data.ProofElement
+import io.github.overtimeevidence.app.data.missingProofElements
 import io.github.overtimeevidence.app.export.EvidenceExporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -14,12 +16,24 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.UUID
+
+data class PendingImport(
+    val token: String = UUID.randomUUID().toString(),
+    val uris: List<Uri>,
+    val sessionId: String?,
+    val suggested: Set<ProofElement>,
+    val source: String,
+    val cleanup: (() -> Unit)? = null,
+)
 
 class EvidenceViewModel(app: Application) : AndroidViewModel(app) {
     val repository = EvidenceRepository(app)
     val state = repository.state
     private val mutableBusy = MutableStateFlow(false)
     val busy = mutableBusy.asStateFlow()
+    private val mutablePending = MutableStateFlow<PendingImport?>(null)
+    val pendingImport = mutablePending.asStateFlow()
     private val mutableMessages = MutableSharedFlow<String>(extraBufferCapacity = 10)
     val messages = mutableMessages.asSharedFlow()
 
@@ -39,25 +53,76 @@ class EvidenceViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun start(task: String) = work("加班记录已开始") { repository.startSession(task) }
-    fun end(id: String) = work("已结束加班，记得补齐证据") { repository.endSession(id) }
+    fun end(id: String) = work {
+        repository.endSession(id)
+        val missing = missingProofElements(state.value.evidence.filter { it.sessionId == id })
+        mutableMessages.emit(if (missing.isEmpty()) "已结束加班。三项均有标注材料，仍请核实证据内容。"
+            else "已结束加班，建议补充：${missing.joinToString("、") { it.label }}")
+    }
     fun editSession(id: String, task: String, note: String) = work("记录已更新") {
         repository.updateSession(id, task, note)
     }
-    fun editEvidence(id: String, kind: EvidenceKind, note: String) = work("材料已更新") {
-        repository.updateEvidence(id, kind, note)
-    }
+    fun editEvidence(id: String, kind: EvidenceKind, note: String, proofElements: Set<ProofElement>) =
+        work("材料已更新") { repository.updateEvidence(id, kind, note, proofElements) }
     fun deleteEvidence(id: String) = work("已删除材料") { repository.deleteEvidence(id) }
     fun deleteSession(id: String) = work("记录及其附件已删除") { repository.deleteSession(id) }
 
-    fun import(
+    /** Stage incoming files and ask for proof tags / explanation before writing to vault. */
+    fun stageImport(
         uris: List<Uri>,
         sessionId: String?,
-        kind: EvidenceKind,
+        suggested: Set<ProofElement>,
         source: String,
-        after: (() -> Unit)? = null,
-    ) = work(after = after) {
-        val n = repository.importUris(uris, sessionId, kind, source)
-        mutableMessages.emit("已归档 $n 件材料${if (n < uris.distinct().size) "，部分文件无法读取" else ""}")
+        cleanup: (() -> Unit)? = null,
+    ) {
+        if (uris.isEmpty()) { cleanup?.invoke(); return }
+        if (mutablePending.value != null) {
+            mutableMessages.tryEmit("请先保存或取消当前待归档材料")
+            cleanup?.invoke()
+            return
+        }
+        mutablePending.value = PendingImport(
+            uris = uris.distinct(), sessionId = sessionId,
+            suggested = suggested, source = source, cleanup = cleanup,
+        )
+    }
+
+    fun cancelPending() {
+        if (mutableBusy.value) return
+        val previous = mutablePending.value ?: return
+        mutablePending.value = null
+        previous.cleanup?.invoke()
+    }
+
+    fun confirmPending(proofElements: Set<ProofElement>, note: String) {
+        val current = mutablePending.value ?: return
+        if (mutableBusy.value) return
+        if (proofElements.isEmpty() || note.isBlank()) {
+            mutableMessages.tryEmit("请选择至少一个要素，并写明材料内容")
+            return
+        }
+        val kind = when {
+            ProofElement.ARRANGED in proofElements -> EvidenceKind.ARRANGEMENT
+            ProofElement.TIME_PAY in proofElements -> EvidenceKind.ATTENDANCE
+            else -> EvidenceKind.PROCESS
+        }
+        viewModelScope.launch {
+            mutableBusy.value = true
+            try {
+                val count = withContext(Dispatchers.IO) {
+                    repository.importUris(current.uris, current.sessionId, kind, current.source, proofElements, note)
+                }
+                mutablePending.value = null
+                current.cleanup?.invoke()
+                mutableMessages.emit("已归档 $count 件材料" +
+                    if (count < current.uris.size) "，部分文件无法读取" else "")
+            } catch (e: Exception) {
+                // Keep the pending content so the user can retry rather than losing the photo.
+                mutableMessages.emit("归档失败，请重试：${e.localizedMessage ?: e.javaClass.simpleName}")
+            } finally {
+                mutableBusy.value = false
+            }
+        }
     }
 
     fun export(id: String, destination: Uri) = work("证据包已导出（未加密，请妥善保管）") {
