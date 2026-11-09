@@ -207,23 +207,28 @@ fun EvidenceScreen(
         var description by remember(staged.token) { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { viewModel.cancelPending() },
-            title = { Text("给材料标注举证要素") },
+            title = { Text("保存材料 · 说明用途") },
             text = {
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Text("已选择 ${staged.uris.size} 件材料。请勾选它能帮助证明的事项（可多选），并注明具体内容。保存后才计入提示。")
+                    Text("已选择 ${staged.uris.size} 件材料。先勾选它能说明的事项，再写明截图或文件里的具体内容。")
+                    if (staged.uris.size > 1) {
+                        Text("本次选择的文件将共用标签和说明。如果内容各不相同，建议分批导入。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     ProofChecklist(checked, onChange = { checked = it })
                     OutlinedTextField(
                         value = description,
                         onValueChange = { description = it },
-                        label = { Text("材料内容 / 证明什么（必填）") },
+                        label = { Text("这份材料记录了什么？（必填）") },
                         placeholder = { Text("例如：21:03主管在工作群指派故障排查，22:15回复处理结果") },
                         minLines = 3,
                         modifier = Modifier.fillMaxWidth().testTag("evidence-description"),
                     )
-                    Text("分类标签只是用户说明，不等于司法机关已认定证据有效。", style = MaterialTheme.typography.bodySmall,
+                    Text("为什么要写？以后导出证据目录时，能知道这份材料从哪里来、具体说明什么。标签只是整理，不等于证据已被认定。", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
@@ -231,7 +236,7 @@ fun EvidenceScreen(
                 TextButton(
                     onClick = { viewModel.confirmPending(checked, description) },
                     enabled = !busy && checked.isNotEmpty() && description.isNotBlank(),
-                ) { Text(if (busy) "正在归档…" else "确认归档") }
+                ) { Text(if (busy) "保存中…" else "保存这份材料") }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.cancelPending() }, enabled = !busy) { Text("取消") }
@@ -242,10 +247,10 @@ fun EvidenceScreen(
     if (newSession) {
         AlertDialog(
             onDismissRequest = { newSession = false },
-            title = { Text("开始加班") },
+            title = { Text("开始一次加班记录") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("记录时间使用手机系统时钟，不能单独证明公司安排或工作事实。")
+                    Text("先写这次加班要处理什么。开始后会记录时间，并引导你保存对应截图；只靠计时不能证明加班事实。")
                     OutlinedTextField(value = task, onValueChange = { task = it }, label = { Text("工作任务") }, singleLine = true,
                         modifier = Modifier.testTag("new-session-task"))
                 }
@@ -432,11 +437,11 @@ private fun SessionDetails(
     if (editSession) {
         AlertDialog(
             onDismissRequest = { editSession = false },
-            title = { Text("编辑事件") },
+            title = { Text("修改这次加班的说明") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(value = task, onValueChange = { task = it }, label = { Text("任务") }, maxLines = 2)
-                    OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("备注：工作地点、休息时长、任务来源等") }, minLines = 3)
+                    OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("说明：日期、休息时间、任务来源等") }, minLines = 3)
                 }
             },
             confirmButton = { TextButton(onClick = { onEdit(task, note); editSession = false }) { Text("保存") } },
@@ -449,12 +454,12 @@ private fun SessionDetails(
         var editElements by remember(item.id) { mutableStateOf(item.proofElements) }
         AlertDialog(
             onDismissRequest = { editingEvidence = null },
-            title = { Text("材料说明") },
+            title = { Text("修改材料的要素与说明") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     ProofChecklist(editElements, onChange = { editElements = it })
                     KindSelector(editKind, onChange = { editKind = it })
-                    OutlinedTextField(value = editNote, onValueChange = { editNote = it }, label = { Text("这份材料的具体内容（必填）") }, minLines = 2)
+                    OutlinedTextField(value = editNote, onValueChange = { editNote = it }, label = { Text("这份材料记录了什么？（必填）") }, minLines = 2)
                 }
             },
             confirmButton = { TextButton(onClick = { onEditEvidence(item.id, editKind, editNote, editElements); editingEvidence = null },
@@ -485,7 +490,7 @@ private fun SessionDetails(
 @Composable
 private fun ProofChecklist(selected: Set<ProofElement>, onChange: (Set<ProofElement>) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("举证三要素（可多选）", style = MaterialTheme.typography.labelLarge)
+        Text("它能说明哪些事项？（可多选）", style = MaterialTheme.typography.labelLarge)
         ProofElement.entries.forEach { element ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(
@@ -497,6 +502,8 @@ private fun ProofChecklist(selected: Set<ProofElement>, onChange: (Set<ProofElem
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(element.label, style = MaterialTheme.typography.bodyMedium)
+                    Text(element.whyCollect(), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
