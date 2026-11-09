@@ -32,9 +32,9 @@ class EvidenceGuideUiTest {
         }
         rule.onNodeWithText("继续记录：自动化夜间留证").performClick()
 
-        rule.onNodeWithText("○ 公司安排 · 0 件已标注").assertExists()
-        rule.onNodeWithText("○ 加班事实 · 0 件已标注").assertExists()
-        rule.onNodeWithText("○ 时长与工资 · 0 件已标注").assertExists()
+        rule.onNodeWithText("○ 待补充 · 公司安排").assertExists()
+        rule.onNodeWithText("○ 待补充 · 加班事实").assertExists()
+        rule.onNodeWithText("○ 待补充 · 时长与工资").assertExists()
 
         val activity = rule.activity
         val imageFile = File(activity.cacheDir, "captures/ui_share_sample.png").apply {
@@ -54,28 +54,29 @@ class EvidenceGuideUiTest {
         // without creating an extra Activity that confuses ActivityScenario teardown.
         rule.runOnUiThread { activity.receiveSharedFiles(share) }
         rule.waitUntil(20_000) {
-            rule.onAllNodesWithText("给材料标注举证要素")
+            rule.onAllNodesWithText("保存材料 · 说明用途")
                 .fetchSemanticsNodes().isNotEmpty()
         }
-        rule.onNodeWithText("给材料标注举证要素").assertIsDisplayed()
+        rule.onNodeWithText("保存材料 · 说明用途").assertIsDisplayed()
 
         // The save action must stay disabled until both a tag and explanation are supplied.
         rule.onNodeWithTag("proof-checkbox-ARRANGED").performClick()
         rule.onNodeWithTag("evidence-description")
             .performTextInput("主管在 21:03 工作群要求晚上继续排障")
-        rule.onNodeWithText("确认归档").performClick()
+        rule.onNodeWithText("保存这份材料").performClick()
 
         rule.waitUntil(20_000) {
-            rule.onAllNodesWithText("✓ 公司安排 · 1 件已标注")
+            rule.onAllNodesWithText("✓ 已标注 · 公司安排")
                 .fetchSemanticsNodes().isNotEmpty()
         }
-        rule.onNodeWithText("○ 加班事实 · 0 件已标注").assertExists()
-        rule.onNodeWithText("○ 时长与工资 · 0 件已标注").assertExists()
-        rule.onNodeWithText("结束加班").performClick()
+        rule.onNodeWithText("○ 待补充 · 加班事实").assertExists()
+        rule.onNodeWithText("○ 待补充 · 时长与工资").assertExists()
+        rule.onNodeWithText("结束计时").performClick()
+        rule.onNodeWithText("确认结束计时").performClick()
         rule.waitUntil(20_000) {
-            rule.onAllNodesWithText("结束加班").fetchSemanticsNodes().isEmpty()
+            rule.onAllNodesWithText("结束计时").fetchSemanticsNodes().isEmpty()
         }
-        rule.onNodeWithText("○ 加班事实 · 0 件已标注").assertExists()
-        rule.onNodeWithText("○ 时长与工资 · 0 件已标注").assertExists()
+        rule.onNodeWithText("○ 待补充 · 加班事实").assertExists()
+        rule.onNodeWithText("○ 待补充 · 时长与工资").assertExists()
     }
 }
