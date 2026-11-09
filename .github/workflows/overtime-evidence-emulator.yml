@@ -45,9 +45,8 @@ jobs:
           ram-size: 2048M
           disable-animations: true
           emulator-boot-timeout: 600
-          script: |
-            cd overtime-evidence-android
-            gradle :app:connectedDebugAndroidTest --no-daemon --stacktrace
+          # The action executes each script line in a fresh shell; keep cd and Gradle together.
+          script: cd overtime-evidence-android && gradle :app:connectedDebugAndroidTest --no-daemon --stacktrace
       - name: Archive device test reports
         if: always()
         uses: actions/upload-artifact@v4
