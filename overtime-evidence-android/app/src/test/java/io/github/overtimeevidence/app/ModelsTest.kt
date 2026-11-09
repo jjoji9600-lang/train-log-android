@@ -3,6 +3,9 @@ package io.github.overtimeevidence.app
 import io.github.overtimeevidence.app.data.Evidence
 import io.github.overtimeevidence.app.data.EvidenceKind
 import io.github.overtimeevidence.app.data.ProofElement
+import io.github.overtimeevidence.app.data.NextAction
+import io.github.overtimeevidence.app.data.sessionGuide
+import io.github.overtimeevidence.app.data.proofCoverageCount
 import io.github.overtimeevidence.app.data.missingProofElements
 import io.github.overtimeevidence.app.data.VaultSnapshot
 import io.github.overtimeevidence.app.data.WorkSession
@@ -43,6 +46,33 @@ class ModelsTest {
         val legacy = oldJson.asSnapshot().evidence.single()
         assertTrue(legacy.proofElements.isEmpty())
         assertEquals(3, missingProofElements(listOf(legacy)).size)
+    }
+
+    @Test fun guideAlwaysSuggestsOneCoherentNextAction() {
+        val active = WorkSession("s", "夜间故障排查", 1000L)
+        val empty = emptyList<Evidence>()
+        assertEquals(NextAction.ADD_FIRST, sessionGuide(active, empty).action)
+        assertEquals(0, proofCoverageCount(empty))
+
+        val arrangement = Evidence("a", "s", "arranged.png", "image/png",
+            EvidenceKind.ARRANGEMENT, "负责人指令", "hash", 5L, 1002L, "picker",
+            proofElements = setOf(ProofElement.ARRANGED))
+        assertEquals(NextAction.SUPPLEMENT, sessionGuide(active, listOf(arrangement)).action)
+        assertEquals(ProofElement.FACT, sessionGuide(active, listOf(arrangement)).missingElement)
+        assertEquals(1, proofCoverageCount(listOf(arrangement)))
+
+        val all = arrangement.copy(proofElements = ProofElement.entries.toSet())
+        assertEquals(NextAction.END, sessionGuide(active, listOf(all)).action)
+        assertEquals(NextAction.EXPORT, sessionGuide(active.copy(endedAt = 2000L), listOf(all)).action)
+        assertEquals(3, proofCoverageCount(listOf(all)))
+    }
+
+    @Test fun importedDraftExplainsWhyTimesNeedChecking() {
+        val draft = WorkSession("draft", "待整理：导入的加班材料", 1000L,
+            endedAt = 1000L, draft = true)
+        val hint = sessionGuide(draft, emptyList())
+        assertEquals(NextAction.REVIEW_EVENT, hint.action)
+        assertTrue(hint.reason.contains("不是实际加班时间"))
     }
 
     @Test fun durationNeverNegative() {
