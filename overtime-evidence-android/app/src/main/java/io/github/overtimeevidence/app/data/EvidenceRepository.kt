@@ -69,11 +69,13 @@ class EvidenceRepository(private val context: Context) {
         }))
     }
 
-    suspend fun updateEvidence(id: String, kind: EvidenceKind, note: String) = lock.withLock {
+    suspend fun updateEvidence(id: String, kind: EvidenceKind, note: String, proofElements: Set<ProofElement>) = lock.withLock {
+        require(proofElements.isNotEmpty()) { "请至少勾选一个举证要素" }
+        require(note.isNotBlank()) { "请填写材料内容说明" }
         val current = mutable.value
         check(current.evidence.any { it.id == id }) { "材料不存在" }
         save(current.copy(evidence = current.evidence.map {
-            if (it.id == id) it.copy(category = kind, note = note) else it
+            if (it.id == id) it.copy(category = kind, note = note.trim(), proofElements = proofElements) else it
         }))
     }
 
@@ -100,7 +102,11 @@ class EvidenceRepository(private val context: Context) {
         requestedSessionId: String?,
         kind: EvidenceKind,
         source: String,
+        proofElements: Set<ProofElement>,
+        note: String,
     ): Int = lock.withLock {
+        require(proofElements.isNotEmpty()) { "请至少勾选一个举证要素" }
+        require(note.isNotBlank()) { "请填写材料内容说明" }
         if (uris.isEmpty()) return@withLock 0
         var current = mutable.value
         val sessionId = requestedSessionId?.takeIf { id -> current.sessions.any { it.id == id } }
@@ -141,6 +147,8 @@ class EvidenceRepository(private val context: Context) {
                     name = meta.first,
                     mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream",
                     category = kind,
+                    note = note.trim(),
+                    proofElements = proofElements,
                     sha256 = hash,
                     bytes = size,
                     importedAt = System.currentTimeMillis(),
