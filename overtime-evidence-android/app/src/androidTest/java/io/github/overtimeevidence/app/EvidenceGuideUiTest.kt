@@ -45,13 +45,18 @@ class EvidenceGuideUiTest {
             bitmap.recycle()
         }
         val uri = FileProvider.getUriForFile(activity, activity.packageName + ".fileprovider", imageFile)
-        val share = Intent(activity, MainActivity::class.java).apply {
-            action = Intent.ACTION_SEND
+        val share = Intent(Intent.ACTION_SEND).apply {
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        rule.runOnUiThread { activity.startActivity(share) }
+        // Deliver the same ACTION_SEND payload to the production handler,
+        // without creating an extra Activity that confuses ActivityScenario teardown.
+        rule.runOnUiThread { activity.receiveSharedFiles(share) }
+        rule.waitUntil(20_000) {
+            rule.onAllNodesWithText("给材料标注举证要素")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
         rule.onNodeWithText("给材料标注举证要素").assertIsDisplayed()
 
         // The save action must stay disabled until both a tag and explanation are supplied.
