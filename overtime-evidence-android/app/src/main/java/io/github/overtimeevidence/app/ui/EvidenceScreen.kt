@@ -22,8 +22,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +49,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.overtimeevidence.app.data.Evidence
-import io.github.overtimeevidence.app.data.EvidenceKind
 import io.github.overtimeevidence.app.data.ProofElement
 import io.github.overtimeevidence.app.data.NextAction
 import io.github.overtimeevidence.app.data.proofCoverageCount
@@ -193,7 +190,7 @@ fun EvidenceScreen(
                     onPick = { elements -> onPick(selected.id, elements) },
                     onCapture = { elements -> onCapture(selected.id, elements) },
                     onExport = { onExport(selected.id) },
-                    onEditEvidence = { id, kind, note, elements -> viewModel.editEvidence(id, kind, note, elements) },
+                    onEditEvidence = { id, note, elements -> viewModel.editEvidence(id, note, elements) },
                     onDeleteEvidence = { viewModel.deleteEvidence(it) },
                     onDeleteSession = { viewModel.deleteSession(selected.id); selectedId = null },
                     modifier = Modifier.padding(insets),
@@ -274,7 +271,7 @@ private fun SessionDetails(
     onPick: (Set<ProofElement>) -> Unit,
     onCapture: (Set<ProofElement>) -> Unit,
     onExport: () -> Unit,
-    onEditEvidence: (String, EvidenceKind, String, Set<ProofElement>) -> Unit,
+    onEditEvidence: (String, String, Set<ProofElement>) -> Unit,
     onDeleteEvidence: (String) -> Unit,
     onDeleteSession: () -> Unit,
     modifier: Modifier = Modifier,
@@ -389,7 +386,7 @@ private fun SessionDetails(
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(row.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text("${row.category.label} · 导入于 ${formatDateTime(row.importedAt)}", style = MaterialTheme.typography.bodySmall)
+                    Text("保存于 ${formatDateTime(row.importedAt)}", style = MaterialTheme.typography.bodySmall)
                     Text(if (row.proofElements.isEmpty()) "三要素：未标注（旧版材料请补标）"
                         else "三要素：${row.proofElements.joinToString("、") { it.label }}",
                         style = MaterialTheme.typography.bodySmall)
@@ -449,7 +446,6 @@ private fun SessionDetails(
         )
     }
     editingEvidence?.let { item ->
-        var editKind by remember(item.id) { mutableStateOf(item.category) }
         var editNote by remember(item.id) { mutableStateOf(item.note) }
         var editElements by remember(item.id) { mutableStateOf(item.proofElements) }
         AlertDialog(
@@ -458,11 +454,10 @@ private fun SessionDetails(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     ProofChecklist(editElements, onChange = { editElements = it })
-                    KindSelector(editKind, onChange = { editKind = it })
                     OutlinedTextField(value = editNote, onValueChange = { editNote = it }, label = { Text("这份材料记录了什么？（必填）") }, minLines = 2)
                 }
             },
-            confirmButton = { TextButton(onClick = { onEditEvidence(item.id, editKind, editNote, editElements); editingEvidence = null },
+            confirmButton = { TextButton(onClick = { onEditEvidence(item.id, editNote, editElements); editingEvidence = null },
                 enabled = !busy && editElements.isNotEmpty() && editNote.isNotBlank()) { Text("保存") } },
             dismissButton = { TextButton(onClick = { editingEvidence = null }) { Text("取消") } },
         )
@@ -505,20 +500,6 @@ private fun ProofChecklist(selected: Set<ProofElement>, onChange: (Set<ProofElem
                     Text(element.whyCollect(), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun KindSelector(selected: EvidenceKind, onChange: (EvidenceKind) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Column {
-        Text("证据分类", style = MaterialTheme.typography.labelMedium)
-        OutlinedButton(onClick = { expanded = true }) { Text("${selected.label} ▾") }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            EvidenceKind.entries.forEach { kind ->
-                DropdownMenuItem(text = { Text(kind.label) }, onClick = { onChange(kind); expanded = false })
             }
         }
     }
