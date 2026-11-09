@@ -9,7 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.FileProvider
 import androidx.core.content.IntentCompat
-import io.github.overtimeevidence.app.data.EvidenceKind
+import io.github.overtimeevidence.app.data.ProofElement
 import io.github.overtimeevidence.app.ui.EvidenceScreen
 import io.github.overtimeevidence.app.ui.EvidenceViewModel
 import java.io.File
@@ -17,13 +17,13 @@ import java.util.UUID
 
 class MainActivity : ComponentActivity() {
     private val vm: EvidenceViewModel by viewModels()
-    private var importKind: EvidenceKind = EvidenceKind.PROCESS
+    private var importSuggested: Set<ProofElement> = emptySet()
     private var importSession: String? = null
     private var exportSession: String? = null
     private var cameraFile: File? = null
 
     private val picker = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isNotEmpty()) vm.import(uris, importSession, importKind, "picker")
+        if (uris.isNotEmpty()) vm.stageImport(uris, importSession, importSuggested, "picker")
     }
     private val camera = registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         val file = cameraFile
@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
         if (file != null) {
             if (success) {
                 val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
-                vm.import(listOf(uri), importSession, importKind, "camera") { file.delete() }
+                vm.stageImport(listOf(uri), importSession, importSuggested, "camera") { file.delete() }
             } else {
                 file.delete()
             }
@@ -48,14 +48,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             EvidenceScreen(
                 viewModel = vm,
-                onPick = { id, kind ->
+                onPick = { id, elements ->
                     importSession = id
-                    importKind = kind
+                    importSuggested = elements
                     picker.launch(arrayOf("image/*", "application/pdf", "text/plain", "*/*"))
                 },
-                onCapture = { id, kind ->
+                onCapture = { id, elements ->
                     importSession = id
-                    importKind = kind
+                    importSuggested = elements
                     val dir = File(cacheDir, "captures").apply { mkdirs() }
                     val file = File(dir, "photo_${UUID.randomUUID()}.jpg")
                     cameraFile = file
@@ -91,7 +91,7 @@ class MainActivity : ComponentActivity() {
                 received.clipData?.getItemAt(it)?.uri
             }
         }
-        if (uris.isNotEmpty()) vm.import(uris, null, EvidenceKind.PROCESS, "share")
+        if (uris.isNotEmpty()) vm.stageImport(uris, null, emptySet(), "share")
         setIntent(Intent(this, MainActivity::class.java))
     }
 }
