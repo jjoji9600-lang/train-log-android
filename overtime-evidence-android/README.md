@@ -6,7 +6,7 @@
 
 - 一键开始、结束加班记录（使用手机系统时间；未自动扣除休息时间）。
 - 从相册/文件管理器导入图片、PDF、文本或其他文件；在微信、钉钉等 App 里使用 Android **分享**功能发送截图到「加班留证」。
-- 调用系统相机拍照并归档。无活跃加班事件时，导入会创建「待整理」记录。
+- 调用系统相机拍照并归档。无活跃加班事件时，导入会创建「待整理」记录。拍照和文件选择进行中若 Activity 被重建，会尝试恢复当前事件、照片文件名和导出请求。
 - **新增三要素留证流程**：拍照、文件选择或系统分享后，先勾选「加班事实」「公司安排」「时长与工资」（可多选），并填写内容说明，确认后才保存到证据库。
 - 仍可编辑原材料的详细类别「公司安排 / 工作过程 / 工作结果 / 考勤记录 / 工资依据 / 其他」。
 - 附件导入时保留输入流的原始字节，计算 SHA-256，使用 Android Keystore 提供的 AES-256-GCM 密钥加密后存入应用私有目录。
@@ -35,7 +35,11 @@ gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon
 
 调试包位置：`app/build/outputs/apk/debug/app-debug.apk`。
 
-GitHub Actions 工作流 `.github/workflows/android.yml` 也会执行单元测试并构建调试 APK，上传 Actions artifact。**构建前请勿把源码状态视为经过设备验证的成品。**
+GitHub Actions 的源码构建任务会执行 JVM 单元测试、编译 Android instrumentation tests 并构建调试 APK。仓库根目录的 `.github/workflows/overtime-evidence-emulator.yml` 会尝试在 Android 35 模拟器上实际运行这些设备测试。
+
+**设备测试覆盖**：生成样例图片，通过 Android FileProvider / ContentResolver 导入；验证本地 AES-GCM 解密与 SHA-256、三要素缺项变化、结束加班后补证、重新创建 Repository、导出 ZIP/PDF/manifest 与原件一致性。另有 Compose UI 测试覆盖新建事件、模拟 Android 分享、勾选要素、填写说明、确认归档和结束加班提醒。
+
+**仍未覆盖**：手机厂商的真实拍照 App、后台回收的全部机型场景、微信/钉钉权限变化、用户真实业务证据质量。通过模拟器测试不等于真机全面验证。
 
 ## 使用步骤
 
@@ -55,6 +59,6 @@ GitHub Actions 工作流 `.github/workflows/android.yml` 也会执行单元测�
 
 Kotlin + Jetpack Compose；应用私有文件存储 + 原子写入 JSON 元数据；AES-GCM（Android Keystore）；Android `PdfDocument`、`ZipOutputStream`。设计为离线单机 MVP，不含云端、账号、广告、埋点。
 
-> 版本：0.2.0 原型。版权和开源授权尚未确定，暂不附加许可证。
+> 版本：0.2.1 测试原型。版权和开源授权尚未确定，暂不附加许可证。
 
 > 升级调试版前：GitHub Actions 的临时调试签名可能变化，若系统提示安装签名冲突，先从旧版 App 导出并在安全位置保存证据，再决定是否卸载重装。卸载会删除本机应用私有证据库。
