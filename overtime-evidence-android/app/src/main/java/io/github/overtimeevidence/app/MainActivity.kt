@@ -45,6 +45,17 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Android may recreate this Activity while a camera, picker, or document UI is open.
+        // Keep the requested session and camera filename so returned photos are not silently lost.
+        savedInstanceState?.let { state ->
+            importSession = state.getString("importSession")
+            importSuggested = state.getStringArrayList("importSuggested")
+                ?.mapNotNull(ProofElement::parse)?.toSet().orEmpty()
+            exportSession = state.getString("exportSession")
+            cameraFile = state.getString("cameraFileName")?.let { fileName ->
+                File(File(cacheDir, "captures"), File(fileName).name)
+            }
+        }
         setContent {
             EvidenceScreen(
                 viewModel = vm,
@@ -69,6 +80,14 @@ class MainActivity : ComponentActivity() {
         }
         // Shares are consumed once, and will not be re-imported on screen rotation.
         receiveSharedFiles(intent)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("importSession", importSession)
+        outState.putStringArrayList("importSuggested", ArrayList(importSuggested.map { it.name }))
+        outState.putString("exportSession", exportSession)
+        outState.putString("cameraFileName", cameraFile?.name)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onNewIntent(intent: Intent) {
