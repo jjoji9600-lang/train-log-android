@@ -83,6 +83,10 @@ class EvidenceGuideUiTest {
         checkItem("○ 待补充 · 时长与工资")
         // Editing an existing file follows the same three-element / description language.
         openAction("三要素 / 说明")
+        rule.waitUntil(20_000) {
+            rule.onAllNodesWithText("修改材料的要素与说明")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
         rule.onNodeWithText("修改材料的要素与说明").assertIsDisplayed()
         rule.onNodeWithTag("proof-checkbox-ARRANGED").assertExists()
         rule.onNodeWithText("取消").performClick()
