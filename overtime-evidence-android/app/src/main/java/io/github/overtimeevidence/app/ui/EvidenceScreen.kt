@@ -452,7 +452,10 @@ private fun SessionDetails(
             onDismissRequest = { editingEvidence = null },
             title = { Text("修改材料的要素与说明") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     ProofChecklist(editElements, onChange = { editElements = it })
                     OutlinedTextField(value = editNote, onValueChange = { editNote = it }, label = { Text("这份材料记录了什么？（必填）") }, minLines = 2)
                 }
