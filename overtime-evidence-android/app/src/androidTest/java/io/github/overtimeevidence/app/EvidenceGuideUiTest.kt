@@ -3,7 +3,6 @@ package io.github.overtimeevidence.app
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -46,12 +45,13 @@ class EvidenceGuideUiTest {
             bitmap.recycle()
         }
         val uri = FileProvider.getUriForFile(activity, activity.packageName + ".fileprovider", imageFile)
-        val share = Intent(Intent.ACTION_SEND).apply {
+        val share = Intent(activity, MainActivity::class.java).apply {
+            action = Intent.ACTION_SEND
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
-        rule.runOnUiThread { activity.onNewIntent(share) }
+        rule.runOnUiThread { activity.startActivity(share) }
         rule.onNodeWithText("给材料标注举证要素").assertIsDisplayed()
 
         // The save action must stay disabled until both a tag and explanation are supplied.
