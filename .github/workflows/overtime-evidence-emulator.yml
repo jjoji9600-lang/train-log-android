@@ -1,0 +1,59 @@
+name: Overtime Evidence Android device journey
+on:
+  push:
+    branches: [feature/overtime-evidence-mvp]
+    paths:
+      - 'overtime-evidence-android/app/**'
+      - '.github/workflows/overtime-evidence-emulator.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-device-journey:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Locate Android tools
+        shell: bash
+        run: |
+          sdkmanager_path="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
+          test -n "$sdkmanager_path"
+          echo "$(dirname "$sdkmanager_path")" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+      - name: Enable emulator acceleration when available
+        shell: bash
+        run: |
+          if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+      - name: Run real Android integration and Compose UI tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 2048M
+          disable-animations: true
+          emulator-boot-timeout: 600
+          script: |
+            cd overtime-evidence-android
+            gradle :app:connectedDebugAndroidTest --no-daemon --stacktrace
+      - name: Archive device test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: overtime-evidence-device-test-reports
+          path: |
+            overtime-evidence-android/app/build/reports/androidTests/connected/
+            overtime-evidence-android/app/build/outputs/androidTest-results/connected/
+          if-no-files-found: ignore
