@@ -46,6 +46,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -201,7 +202,7 @@ fun EvidenceScreen(
                         label = { Text("材料内容 / 证明什么（必填）") },
                         placeholder = { Text("例如：21:03主管在工作群指派故障排查，22:15回复处理结果") },
                         minLines = 3,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().testTag("evidence-description"),
                     )
                     Text("分类标签只是用户说明，不等于司法机关已认定证据有效。", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -226,7 +227,8 @@ fun EvidenceScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("记录时间使用手机系统时钟，不能单独证明公司安排或工作事实。")
-                    OutlinedTextField(value = task, onValueChange = { task = it }, label = { Text("工作任务") }, singleLine = true)
+                    OutlinedTextField(value = task, onValueChange = { task = it }, label = { Text("工作任务") }, singleLine = true,
+                        modifier = Modifier.testTag("new-session-task"))
                 }
             },
             confirmButton = {
@@ -409,6 +411,7 @@ private fun ProofChecklist(selected: Set<ProofElement>, onChange: (Set<ProofElem
         ProofElement.entries.forEach { element ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(
+                    modifier = Modifier.testTag("proof-checkbox-" + element.name),
                     checked = element in selected,
                     onCheckedChange = { checked ->
                         onChange(if (checked) selected + element else selected - element)
