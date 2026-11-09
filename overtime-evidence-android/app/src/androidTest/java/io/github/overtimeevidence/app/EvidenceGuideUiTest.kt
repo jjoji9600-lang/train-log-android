@@ -49,7 +49,7 @@ class EvidenceGuideUiTest {
             action = Intent.ACTION_SEND
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         rule.runOnUiThread { activity.startActivity(share) }
         rule.onNodeWithText("给材料标注举证要素").assertIsDisplayed()
