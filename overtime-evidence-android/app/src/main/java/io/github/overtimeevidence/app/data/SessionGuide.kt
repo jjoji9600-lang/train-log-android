@@ -14,6 +14,12 @@ data class SessionGuide(
     val missingElement: ProofElement? = null,
 )
 
+fun ProofElement.whyCollect(): String = when (this) {
+    ProofElement.FACT -> "说明加班期间实际处理了工作，而不只是个人记录了在场时间。"
+    ProofElement.ARRANGED -> "说明工作由公司安排或公司知情，方便还原任务来源。"
+    ProofElement.TIME_PAY -> "说明实际工作时段与工资计算依据，便于之后核对加班时间和金额。"
+}
+
 fun proofCoverageCount(evidence: List<Evidence>): Int =
     ProofElement.entries.size - missingProofElements(evidence).size
 
