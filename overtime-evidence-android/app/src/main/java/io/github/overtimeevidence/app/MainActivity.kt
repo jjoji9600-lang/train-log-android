@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
         receiveSharedFiles(intent)
     }
 
-    private fun receiveSharedFiles(incoming: Intent?) {
+    internal fun receiveSharedFiles(incoming: Intent?) {
         val received = incoming ?: return
         val action = received.action
         if (action != Intent.ACTION_SEND && action != Intent.ACTION_SEND_MULTIPLE) return
