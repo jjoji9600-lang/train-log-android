@@ -287,7 +287,7 @@ private fun SessionDetails(
     var pendingDeleteSession by remember { mutableStateOf(false) }
     var pendingEnd by remember { mutableStateOf(false) }
 
-    LazyColumn(modifier = modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(modifier = modifier.fillMaxSize().testTag("session-content-list").padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Spacer(Modifier.height(6.dp))
             TextButton(onClick = onBack) { Text("← 返回记录") }
