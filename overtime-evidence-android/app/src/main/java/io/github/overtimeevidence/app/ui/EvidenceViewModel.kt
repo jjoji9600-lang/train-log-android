@@ -62,10 +62,19 @@ class EvidenceViewModel(app: Application) : AndroidViewModel(app) {
     fun editSession(id: String, task: String, note: String) = work("记录已更新") {
         repository.updateSession(id, task, note)
     }
-    fun editEvidence(id: String, kind: EvidenceKind, note: String, proofElements: Set<ProofElement>) =
-        work("材料已更新") { repository.updateEvidence(id, kind, note, proofElements) }
+    fun editEvidence(id: String, note: String, proofElements: Set<ProofElement>) =
+        work("材料已更新") {
+            repository.updateEvidence(id, inferredKind(proofElements), note, proofElements)
+        }
     fun deleteEvidence(id: String) = work("已删除材料") { repository.deleteEvidence(id) }
     fun deleteSession(id: String) = work("记录及其附件已删除") { repository.deleteSession(id) }
+
+    /** Keep the legacy export category automatically in sync with the visible proof tags. */
+    private fun inferredKind(proofElements: Set<ProofElement>): EvidenceKind = when {
+        ProofElement.ARRANGED in proofElements -> EvidenceKind.ARRANGEMENT
+        ProofElement.TIME_PAY in proofElements -> EvidenceKind.ATTENDANCE
+        else -> EvidenceKind.PROCESS
+    }
 
     /** Stage incoming files and ask for proof tags / explanation before writing to vault. */
     fun stageImport(
@@ -101,11 +110,7 @@ class EvidenceViewModel(app: Application) : AndroidViewModel(app) {
             mutableMessages.tryEmit("请选择至少一个要素，并写明材料内容")
             return
         }
-        val kind = when {
-            ProofElement.ARRANGED in proofElements -> EvidenceKind.ARRANGEMENT
-            ProofElement.TIME_PAY in proofElements -> EvidenceKind.ATTENDANCE
-            else -> EvidenceKind.PROCESS
-        }
+        val kind = inferredKind(proofElements)
         viewModelScope.launch {
             mutableBusy.value = true
             try {
