@@ -4,6 +4,8 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -23,6 +25,14 @@ class EvidenceGuideUiTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
 
     @Test fun sharedScreenshotRequiresTagAndDescriptionAndThenShowsGaps() {
+        fun checkItem(text: String) {
+            rule.onNodeWithTag("session-content-list").performScrollToNode(hasText(text))
+            rule.onNodeWithText(text).assertExists()
+        }
+        fun openAction(text: String) {
+            rule.onNodeWithTag("session-content-list").performScrollToNode(hasText(text))
+            rule.onNodeWithText(text).performClick()
+        }
         rule.onNodeWithText("＋ 开始加班").performClick()
         rule.onNodeWithTag("new-session-task").performTextInput("自动化夜间留证")
         rule.onNodeWithText("开始记录").performClick()
@@ -32,9 +42,9 @@ class EvidenceGuideUiTest {
         }
         rule.onNodeWithText("继续记录：自动化夜间留证").performClick()
 
-        rule.onNodeWithText("○ 待补充 · 公司安排").assertExists()
-        rule.onNodeWithText("○ 待补充 · 加班事实").assertExists()
-        rule.onNodeWithText("○ 待补充 · 时长与工资").assertExists()
+        checkItem("○ 待补充 · 公司安排")
+        checkItem("○ 待补充 · 加班事实")
+        checkItem("○ 待补充 · 时长与工资")
 
         val activity = rule.activity
         val imageFile = File(activity.cacheDir, "captures/ui_share_sample.png").apply {
@@ -69,14 +79,14 @@ class EvidenceGuideUiTest {
             rule.onAllNodesWithText("✓ 已标注 · 公司安排")
                 .fetchSemanticsNodes().isNotEmpty()
         }
-        rule.onNodeWithText("○ 待补充 · 加班事实").assertExists()
-        rule.onNodeWithText("○ 待补充 · 时长与工资").assertExists()
-        rule.onNodeWithText("结束计时").performClick()
+        checkItem("○ 待补充 · 加班事实")
+        checkItem("○ 待补充 · 时长与工资")
+        openAction("结束计时")
         rule.onNodeWithText("确认结束计时").performClick()
         rule.waitUntil(20_000) {
             rule.onAllNodesWithText("结束计时").fetchSemanticsNodes().isEmpty()
         }
-        rule.onNodeWithText("○ 待补充 · 加班事实").assertExists()
-        rule.onNodeWithText("○ 待补充 · 时长与工资").assertExists()
+        checkItem("○ 待补充 · 加班事实")
+        checkItem("○ 待补充 · 时长与工资")
     }
 }
