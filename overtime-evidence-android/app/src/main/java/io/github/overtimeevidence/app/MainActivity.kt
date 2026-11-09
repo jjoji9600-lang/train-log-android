@@ -77,17 +77,18 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun receiveSharedFiles(incoming: Intent?) {
-        val action = incoming?.action
+        val received = incoming ?: return
+        val action = received.action
         if (action != Intent.ACTION_SEND && action != Intent.ACTION_SEND_MULTIPLE) return
         val uris = when (action) {
             Intent.ACTION_SEND -> listOfNotNull(
-                IntentCompat.getParcelableExtra(incoming, Intent.EXTRA_STREAM, Uri::class.java)
+                IntentCompat.getParcelableExtra(received, Intent.EXTRA_STREAM, Uri::class.java)
             )
-            else -> IntentCompat.getParcelableArrayListExtra(incoming, Intent.EXTRA_STREAM, Uri::class.java)
+            else -> IntentCompat.getParcelableArrayListExtra(received, Intent.EXTRA_STREAM, Uri::class.java)
                 .orEmpty()
         }.ifEmpty {
-            (0 until (incoming.clipData?.itemCount ?: 0)).mapNotNull {
-                incoming.clipData?.getItemAt(it)?.uri
+            (0 until (received.clipData?.itemCount ?: 0)).mapNotNull {
+                received.clipData?.getItemAt(it)?.uri
             }
         }
         if (uris.isNotEmpty()) vm.import(uris, null, EvidenceKind.PROCESS, "share")
