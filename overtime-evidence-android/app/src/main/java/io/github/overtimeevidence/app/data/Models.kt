@@ -16,6 +16,20 @@ enum class EvidenceKind(val label: String) {
     }
 }
 
+/** The three practical proof questions. Tags are user assertions, not legal findings. */
+enum class ProofElement(val label: String, val suggestion: String) {
+    FACT("加班事实", "补充下班后工单、工作邮件、任务处理日志或成果截图，并保留上下文。"),
+    ARRANGED("公司安排", "补充领导指令、排班通知、审批记录，或公司知情并要求继续处理任务的消息。"),
+    TIME_PAY("时长与工资", "补充上下班考勤、任务开始与结束记录、休息时间，以及工资条或劳动合同。");
+
+    companion object {
+        fun parse(value: String): ProofElement? = entries.firstOrNull { it.name == value }
+    }
+}
+
+fun missingProofElements(evidence: List<Evidence>): List<ProofElement> =
+    ProofElement.entries.filter { type -> evidence.none { type in it.proofElements } }
+
 data class WorkSession(
     val id: String,
     val task: String,
@@ -38,6 +52,7 @@ data class Evidence(
     val importedAt: Long,
     val source: String,
     val originalModifiedAt: Long? = null,
+    val proofElements: Set<ProofElement> = emptySet(),
 )
 
 data class VaultSnapshot(
@@ -67,6 +82,7 @@ fun Evidence.asJson(): JSONObject = JSONObject().apply {
     put("importedAt", importedAt)
     put("source", source)
     put("originalModifiedAt", originalModifiedAt ?: JSONObject.NULL)
+    put("proofElements", JSONArray().also { arr -> proofElements.sortedBy { it.ordinal }.forEach { arr.put(it.name) } })
 }
 
 fun VaultSnapshot.asJson(): JSONObject = JSONObject().apply {
@@ -97,6 +113,9 @@ fun JSONObject.asEvidence() = Evidence(
     importedAt = getLong("importedAt"),
     source = optString("source", "unknown"),
     originalModifiedAt = if (isNull("originalModifiedAt")) null else getLong("originalModifiedAt"),
+    proofElements = optJSONArray("proofElements")?.let { arr ->
+        (0 until arr.length()).mapNotNull { ProofElement.parse(arr.optString(it)) }.toSet()
+    } ?: emptySet(),
 )
 
 fun JSONObject.asSnapshot(): VaultSnapshot {
