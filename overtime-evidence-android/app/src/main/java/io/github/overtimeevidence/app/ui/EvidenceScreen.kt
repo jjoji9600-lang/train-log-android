@@ -280,6 +280,7 @@ private fun SessionDetails(
     var editingEvidence by remember { mutableStateOf<Evidence?>(null) }
     var pendingDeleteEvidence by remember { mutableStateOf<Evidence?>(null) }
     var pendingDeleteSession by remember { mutableStateOf(false) }
+    var pendingEnd by remember { mutableStateOf(false) }
 
     LazyColumn(modifier = modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
@@ -295,16 +296,48 @@ private fun SessionDetails(
             if (session.draft) Text("待整理事件的时间由导入动作生成，并非工作起止时间。请在备注中补充真实时间及出处。", color = MaterialTheme.colorScheme.error)
         }
         item {
+            val guide = sessionGuide(session, evidence)
+            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("建议你现在做什么", style = MaterialTheme.typography.labelLarge)
+                    Text(guide.title, style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold)
+                    Text(guide.reason, style = MaterialTheme.typography.bodyMedium)
+                    Text("三要素标注进度：${proofCoverageCount(evidence)}/3（只检查标签，不代表举证充分）",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(
+                        onClick = {
+                            when (guide.action) {
+                                NextAction.REVIEW_EVENT -> editSession = true
+                                NextAction.ADD_FIRST -> onPick(emptySet())
+                                NextAction.SUPPLEMENT -> onPick(setOfNotNull(guide.missingElement))
+                                NextAction.END -> pendingEnd = true
+                                NextAction.EXPORT -> onExport()
+                            }
+                        },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(guide.button) }
+                }
+            }
+        }
+        item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { editSession = true }, modifier = Modifier.weight(1f)) { Text("编辑说明") }
-                if (session.endedAt == null) Button(onClick = onEnd, enabled = !busy, modifier = Modifier.weight(1f)) { Text("结束加班") }
+                OutlinedButton(onClick = { editSession = true }, modifier = Modifier.weight(1f)) {
+                    Text("修改任务与说明")
+                }
+                if (session.endedAt == null) {
+                    OutlinedButton(onClick = { pendingEnd = true }, enabled = !busy,
+                        modifier = Modifier.weight(1f)) { Text("结束计时") }
+                }
             }
         }
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("新增材料", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
-                    Text("拍照或导入之后勾选三要素，并填写材料内容说明。",
+                    Text("随手保存其他材料", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Text("截图、工单、考勤记录均可保存；导入后统一勾选三要素并注明内容。",
                         style = MaterialTheme.typography.bodySmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { onPick(emptySet()) }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("导入截图/文件") }
@@ -315,22 +348,23 @@ private fun SessionDetails(
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("三要素留证提醒", style = MaterialTheme.typography.titleLarge,
+                Text("还缺什么？为什么要补？", style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold)
                 ProofElement.entries.forEach { element ->
                     val count = evidence.count { element in it.proofElements }
                     OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text("${if (count > 0) "✓" else "○"} ${element.label} · ${count} 件已标注",
+                            Text("${if (count > 0) "✓ 已标注" else "○ 待补充"} · ${element.label}",
                                 style = MaterialTheme.typography.titleMedium)
+                            Text(element.whyCollect(), style = MaterialTheme.typography.bodySmall)
                             if (count == 0) {
-                                Text("尚无已提交的此类材料。建议：${element.suggestion}",
+                                Text("建议保存：${element.suggestion}",
                                     style = MaterialTheme.typography.bodySmall)
                                 OutlinedButton(onClick = { onPick(setOf(element)) }, enabled = !busy) {
-                                    Text("补充这项材料")
+                                    Text("补充${element.label}")
                                 }
                             } else {
-                                Text("已标注不代表充分，建议核对原始记录及上下文。",
+                                Text("已有 ${count} 份材料标注此项；仍要确认内容与原始记录一致。",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -342,10 +376,10 @@ private fun SessionDetails(
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("证据清单（${evidence.size}）", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                OutlinedButton(onClick = onExport, enabled = !busy) { Text("导出 ZIP") }
+                OutlinedButton(onClick = onExport, enabled = !busy && evidence.isNotEmpty()) { Text("导出证据包") }
             }
         }
-        if (evidence.isEmpty()) item { HintCard("尚未添加材料。优先保留工作安排、实际处理过程和完成反馈等带上下文的记录。") }
+        if (evidence.isEmpty()) item { HintCard("还没有证据文件。先保存一份材料并填写说明，之后即可导出备份。") }
         items(evidence, key = { it.id }) { row ->
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -369,6 +403,31 @@ private fun SessionDetails(
             TextButton(onClick = { pendingDeleteSession = true }) { Text("删除本条加班及全部附件") }
             Spacer(Modifier.height(12.dp))
         }
+    }
+    if (pendingEnd) {
+        val gaps = missingProofElements(evidence)
+        AlertDialog(
+            onDismissRequest = { pendingEnd = false },
+            title = { Text("结束本次加班计时？") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("结束只记录停止时间，不会锁定这次加班。之后依然可以补充截图和说明。")
+                    Text(
+                        if (gaps.isEmpty()) "三类举证事项均有标注材料，建议事后再核对内容。"
+                        else "目前还缺：${gaps.joinToString("、") { it.label }}。结束后仍会提醒补充。",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { onEnd(); pendingEnd = false }, enabled = !busy) {
+                    Text("确认结束计时")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingEnd = false }) { Text("继续记录") }
+            },
+        )
     }
     if (editSession) {
         AlertDialog(
