@@ -81,6 +81,12 @@ class EvidenceGuideUiTest {
         }
         checkItem("○ 待补充 · 加班事实")
         checkItem("○ 待补充 · 时长与工资")
+        // Editing an existing file follows the same three-element / description language.
+        openAction("三要素 / 说明")
+        rule.onNodeWithText("修改材料的要素与说明").assertIsDisplayed()
+        rule.onNodeWithTag("proof-checkbox-ARRANGED").assertExists()
+        rule.onNodeWithText("取消").performClick()
+
         openAction("结束计时")
         rule.onNodeWithText("确认结束计时").performClick()
         rule.waitUntil(20_000) {
