@@ -53,13 +53,16 @@ import androidx.compose.ui.unit.dp
 import io.github.overtimeevidence.app.data.Evidence
 import io.github.overtimeevidence.app.data.EvidenceKind
 import io.github.overtimeevidence.app.data.ProofElement
+import io.github.overtimeevidence.app.data.NextAction
+import io.github.overtimeevidence.app.data.proofCoverageCount
+import io.github.overtimeevidence.app.data.sessionGuide
+import io.github.overtimeevidence.app.data.whyCollect
 import io.github.overtimeevidence.app.data.missingProofElements
 import io.github.overtimeevidence.app.data.WorkSession
 import io.github.overtimeevidence.app.util.elapsedMinutes
 import io.github.overtimeevidence.app.util.formatDateTime
 import io.github.overtimeevidence.app.util.formatDuration
 import kotlinx.coroutines.flow.collect
-import java.util.Calendar
 
 @Composable
 fun EvidenceScreen(
@@ -95,19 +98,28 @@ fun EvidenceScreen(
                         Text("平时随手留存，需要时按事件导出。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     item {
-                        val month = Calendar.getInstance()
-                        val monthlyMinutes = vault.sessions.filter { session ->
-                            val c = Calendar.getInstance().apply { timeInMillis = session.startedAt }
-                            c.get(Calendar.YEAR) == month.get(Calendar.YEAR) &&
-                                c.get(Calendar.MONTH) == month.get(Calendar.MONTH)
-                        }.sumOf { session ->
-                            session.endedAt?.let { elapsedMinutes(session.startedAt, it) } ?: 0L
-                        }
-                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-                            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("本月已结束的记录跨度", style = MaterialTheme.typography.labelLarge)
-                                Text(formatDuration(monthlyMinutes), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
-                                Text("共 ${vault.sessions.size} 条事件，${vault.evidence.size} 件材料。时长不自动扣除休息，也不等于依法认定的加班。", style = MaterialTheme.typography.bodySmall)
+                        val focus = active ?: vault.sessions.firstOrNull()
+                        if (focus == null) {
+                            HintCard("先创建一次加班记录，再随手保存工作安排、实际工作和考勤材料。每次上传后会提示还缺什么。")
+                        } else {
+                            val focusEvidence = vault.evidence.filter { it.sessionId == focus.id }
+                            val guide = sessionGuide(focus, focusEvidence)
+                            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(if (active != null) "正在记录 · 现在该做什么" else "上次记录 · 还没做什么",
+                                        style = MaterialTheme.typography.labelLarge)
+                                    Text(guide.title, style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.SemiBold)
+                                    Text(guide.reason, style = MaterialTheme.typography.bodyMedium)
+                                    Text("已标注 ${proofCoverageCount(focusEvidence)}/3 类举证事项 · ${focusEvidence.size} 份材料",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    if (active == null) {
+                                        OutlinedButton(onClick = { selectedId = focus.id }) {
+                                            Text("继续整理这条记录")
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -123,13 +135,19 @@ fun EvidenceScreen(
                         }
                     }
                     item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { onPick(active?.id, emptySet()) }, enabled = !busy, modifier = Modifier.weight(1f)) {
-                                Text("导入截图/文件")
+                        if (active != null) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = { onPick(active.id, emptySet()) }, enabled = !busy,
+                                    modifier = Modifier.weight(1f)) { Text("添加截图") }
+                                OutlinedButton(onClick = { onCapture(active.id, emptySet()) }, enabled = !busy,
+                                    modifier = Modifier.weight(1f)) { Text("拍照留证") }
                             }
-                            OutlinedButton(onClick = { onCapture(active?.id, emptySet()) }, enabled = !busy, modifier = Modifier.weight(1f)) {
-                                Text("拍照留证")
-                            }
+                        } else {
+                            OutlinedButton(onClick = { onPick(null, emptySet()) }, enabled = !busy,
+                                modifier = Modifier.fillMaxWidth()) { Text("整理以前的截图") }
+                            Text("没有正在计时的事件时，导入将创建待整理记录；先补充真实工作时间与任务来源。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     item {
@@ -145,12 +163,13 @@ fun EvidenceScreen(
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(session.task, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                                 Text("${formatDateTime(session.startedAt)} · ${if (session.endedAt == null) "进行中" else "已结束"}", style = MaterialTheme.typography.bodySmall)
-                                Text("材料 ${vault.evidence.count { it.sessionId == session.id }} 件" +
-                                    (session.endedAt?.let { " · 跨度 ${formatDuration(elapsedMinutes(session.startedAt, it))}" } ?: ""),
+                                val localEvidence = vault.evidence.filter { it.sessionId == session.id }
+                                Text("已标注 ${proofCoverageCount(localEvidence)}/3 类 · 材料 ${localEvidence.size} 件" +
+                                    (session.endedAt?.let { " · 记录跨度 ${formatDuration(elapsedMinutes(session.startedAt, it))}" } ?: ""),
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                val missing = missingProofElements(vault.evidence.filter { it.sessionId == session.id })
-                                Text(if (missing.isEmpty()) "三要素均已标注（请核实证据内容）"
-                                    else "待补充：${missing.joinToString("、") { it.label }}",
+                                val missing = missingProofElements(localEvidence)
+                                Text(if (missing.isEmpty()) "三类均有标注材料，建议核对内容后备份"
+                                    else "待补材料：${missing.joinToString("、") { it.label }}",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = if (missing.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)
                                 if (session.draft) Text("待整理：请核实真实工作时间", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
