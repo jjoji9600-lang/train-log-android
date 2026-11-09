@@ -52,6 +52,7 @@ import io.github.overtimeevidence.app.data.WorkSession
 import io.github.overtimeevidence.app.util.elapsedMinutes
 import io.github.overtimeevidence.app.util.formatDateTime
 import io.github.overtimeevidence.app.util.formatDuration
+import kotlinx.coroutines.flow.collect
 import java.util.Calendar
 
 @Composable
