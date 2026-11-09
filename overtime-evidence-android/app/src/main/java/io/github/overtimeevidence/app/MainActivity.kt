@@ -111,6 +111,9 @@ class MainActivity : ComponentActivity() {
             }
         }
         if (uris.isNotEmpty()) vm.stageImport(uris, null, emptySet(), "share")
-        setIntent(Intent(this, MainActivity::class.java))
+        // Consume incoming streams without replacing Activity.getIntent().
+        // Replacing the intent breaks lifecycle tracking and can interfere with reopening.
+        received.removeExtra(Intent.EXTRA_STREAM)
+        received.clipData = null
     }
 }
