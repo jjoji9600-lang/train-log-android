@@ -1,0 +1,58 @@
+name: Publish TrainLog 1.9.0 Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-v1.9.0.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download verified APK
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          mkdir -p dist
+          gh run download 42849307056 --repo "\${{ github.repository }}" \
+            --name TrainLog-debug-apk --dir dist
+          test -s dist/app-debug.apk
+          mv dist/app-debug.apk dist/TrainLog-v1.9.0.apk
+          unzip -l dist/TrainLog-v1.9.0.apk | grep 'assets/anatomy_images/part_00.json'
+          sha256sum dist/TrainLog-v1.9.0.apk
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          if gh release view v1.9.0 --repo "\${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload v1.9.0 dist/TrainLog-v1.9.0.apk \
+              --repo "\${{ github.repository }}" --clobber
+          else
+            gh release create v1.9.0 dist/TrainLog-v1.9.0.apk \
+              --repo "\${{ github.repository }}" \
+              --target 9e5e7e24039766490019fa49aab44ba73fbd4a81 \
+              --title "TrainLog 1.9.0 · 双模式瑜伽训练" \
+              --notes "### 新增
+          - 力量训练后的短时恢复瑜伽：上肢、下肢、全身三种模板
+          - 独立瑜伽：基于《艾扬格瑜伽》20周课程的练习清单
+          - 可选分钟数、练后感觉和动作完成情况
+          - 同一天多次练习可分别保存，不再互相覆盖
+          - 手动周次进阶及自评、单次记录删除、CSV导出
+          
+          ### 书籍依据
+          《艾扬格瑜伽》第八章课程表（纸书410至423页）。
+          《精进习练指南》用于体式方法、呼吸及辅助练习的参考。
+          第7至20周的清单为精简体式索引，原书的工具规格、变式与完整内容以书中课程表为准。
+          恢复短课为App改编，不是原书官方课程。
+          
+          ### 注意
+          本APK为Android Debug自签名版本，不保证不同构建签名一致。
+          升级前请先备份CSV；卸载旧版可能丢失本地历史数据。
+          不应仅凭清单自行练习头倒立、肩倒立等高风险动作。"
+          fi
