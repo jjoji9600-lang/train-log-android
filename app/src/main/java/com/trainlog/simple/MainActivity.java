@@ -87,7 +87,10 @@ public class MainActivity extends Activity {
   String today=new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new Date());
   int exercise=0;
   int dp(int n){return (int)(getResources().getDisplayMetrics().density*n+.5f);}
-  @Override public void onCreate(Bundle b){super.onCreate(b);db=new DB(this);record();}
+  @Override public void onCreate(Bundle b){
+    super.onCreate(b);db=new DB(this);
+    if(getIntent().getBooleanExtra("open_yoga_library",false))yoga();else record();
+  }
   LinearLayout column(){LinearLayout l=new LinearLayout(this);l.setOrientation(1);return l;}
   TextView label(String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextColor(DARK);t.setTextSize(size);t.setPadding(0,dp(5),0,dp(5));return t;}
   Button button(String s){Button b=new Button(this);b.setAllCaps(false);b.setText(s);b.setTextColor(GREEN);return b;}
@@ -99,13 +102,14 @@ public class MainActivity extends Activity {
     HorizontalScrollView navScroller=new HorizontalScrollView(this);
     navScroller.setHorizontalScrollBarEnabled(false);
     LinearLayout nav=new LinearLayout(this);nav.setOrientation(LinearLayout.HORIZONTAL);
-    for(String item:new String[]{"力量","瑜伽","序列","解剖","趋势","历史"}){
+    for(String item:new String[]{"力量","瑜伽训练","体式库","旧课程","解剖","趋势","历史"}){
       Button b=button(item);b.setTextSize(12);
       nav.addView(b,new LinearLayout.LayoutParams(dp(72),dp(50)));
       b.setOnClickListener(v->{
         if(item.equals("力量"))record();
-        else if(item.equals("瑜伽"))yoga();
-        else if(item.equals("序列"))startActivity(new Intent(this,YogaPlansActivity.class));
+        else if(item.equals("瑜伽训练"))startActivity(new Intent(this,YogaTrainingActivity.class));
+        else if(item.equals("体式库"))yoga();
+        else if(item.equals("旧课程"))startActivity(new Intent(this,YogaPlansActivity.class));
         else if(item.equals("解剖"))startActivity(new Intent(this,AnatomyActivity.class));
         else if(item.equals("趋势"))progress();
         else history();
@@ -407,6 +411,12 @@ public class MainActivity extends Activity {
     Graph graph=new Graph(this,all,exercise);add(root,graph);
     add(root,label("参考目标：引体向上从5次逐步提高到8次。不要为了次数牺牲动作质量。",13));
     add(root,label("瑜伽：最近28天练习 "+db.yogaCount(28)+" 次；目标每周2次（28天约8次）。",14));
+    Button after=button("力量练完了？做10～20分钟恢复瑜伽");
+    add(root,after);
+    after.setOnClickListener(v->{
+      Intent i=new Intent(this,YogaTrainingActivity.class);
+      i.putExtra("after_strength",true);startActivity(i);
+    });
     Button export=button("导出CSV备份");add(root,export);export.setOnClickListener(v->export());
   }
   void history(){
