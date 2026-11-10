@@ -126,6 +126,7 @@ public final class YogaTrainingActivity extends Activity {
   String mode="after",planId="";
   String[] currentItems;
   int week=1,afterChoice=0;
+  boolean suggestedOnce=false;
   String day=new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new Date());
 
   int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+0.5f);}
@@ -165,9 +166,12 @@ public final class YogaTrainingActivity extends Activity {
     add(button("← 返回瑜伽首页",this::home));
     add(text("App自编短课，不是原书官方“训练后”课程。疲劳、疼痛或眩晕时可直接休息，不强行拉伸。",13));
     int suggested=suggestFromStrength();
+    if(!suggestedOnce){
+      suggestedOnce=true;
+      if(suggested>=0)afterChoice=suggested;
+    }
     if(suggested>=0){
-      afterChoice=suggested;
-      add(text("已参考今天保存的力量记录，优先显示："+FOCUS[suggested],13));
+      add(text("参考了今天保存的力量训练，推荐："+FOCUS[suggested]+"；也可以手动选其他方案。",13));
     }
     LinearLayout bar=new LinearLayout(this);
     for(int i=0;i<3;i++){
@@ -206,7 +210,7 @@ public final class YogaTrainingActivity extends Activity {
     changes.addView(button("下一周",()->nextWeek()),new LinearLayout.LayoutParams(0,dp(50),1));
     add(changes);
     add(text("原书课程表所在页："+bookPages(week)+"；如果时间不足，可以只练一部分并记录。",13));
-    if(week>=7)add(text("重要：本周勾选列表是基于体式名称整理的便捷索引，不代表书中每一项工具、变式和顺序。实际练习以原书课程表为准。",13));
+    if(week>=7)add(text("本周为原书体式名称顺序的精简索引；辅助工具规格、具体变式及保持时间仍以原书为准。",13));
     add(button("开始记录第"+week+"周",()->openWeek(week)));
     add(text("建议反复练习当前周，直到能够自然呼吸、稳定进入和退出动作；不必按日历强制升级。",13));
     add(button("查看同周历史记录",this::history));
@@ -233,14 +237,26 @@ public final class YogaTrainingActivity extends Activity {
   void persistWeek(){getPreferences(0).edit().putInt("week",week).apply();}
   String[] weekItems(int num){
     if(num<=FIRST_WEEKS.length)return FIRST_WEEKS[num-1];
-    int length=COURSE_SIZES[num-1];
-    return Arrays.copyOf(WEEK_TITLES,Math.min(length,WEEK_TITLES.length));
+    ArrayList<String> list=new ArrayList<>();
+    // The first 33 names occur in the same order across later weeks.
+    list.addAll(Arrays.asList(Arrays.copyOf(WEEK_TITLES,33)));
+    if(num>=15)list.add("辅助倒手杖式");
+    if(num>=16)list.add("辅助骆驼式");
+    list.addAll(Arrays.asList("仰卧束角式","卧英雄式",
+      "仰卧手抓脚趾伸展式（带）","仰卧手抓脚趾伸展式（砖）"));
+    if(num>=13)list.add("头倒立（靠墙）");
+    list.addAll(Arrays.asList("辅助肩倒立","辅助犁式","辅助桥式"));
+    if(num>=10)list.add("倒剪式");
+    list.add("挺尸式");
+    if(num>=15)list.add("乌加依呼吸");
+    if(num>=20)list.add("间断呼吸控制法");
+    return list.toArray(new String[0]);
   }
   void openWeek(int n){
     mode="week";screen("原书课程 · 第"+n+"周");
     add(button("← 返回20周课程",this::weeks));
     add(text("原书对应纸书第"+bookPages(n)+"页；部分周次序列包含30～47项，并非要求一次全部做完。",13));
-    if(n>=7)add(text("这是速记用的体式索引，书中的辅助工具、变式及实际位置仍需参照原书表格。",13));
+    if(n>=7)add(text("本清单保留课程的主要体式顺序，省略了一些辅助工具细节；具体做法请对照原书表格。",13));
     add(text("倒置或颈部承重体式请先由合格教师评估，不因列在课程中就自行练习。",13));
     buildChecklist(weekItems(n),"week-"+n);
   }
@@ -277,10 +293,10 @@ public final class YogaTrainingActivity extends Activity {
   }
   String poseHint(String name){
     if(name.contains("山式"))return "注意足部均匀受力、脊柱延长；参考《精进习练指南》山式。";
-    if(name.contains("三角"))return "手可借助瑜伽砖；稳定腿部后再延长躯干。";
-    if(name.contains("下犬"))return "肩腕有不适时可改扶墙版本，避免强压脚跟。";
-    if(name.contains("束角"))return "可用支撑垫高膝盖，避免强压髋或膝。";
-    if(name.contains("挺尸"))return "自然呼吸、放松；不必强迫固定呼吸次数。";
+    if(name.contains("三角"))return "手可借助瑜伽砖；稳定腿部后再延长躯干。参见《精进习练指南》三角伸展式（书内30页）。";
+    if(name.contains("下犬"))return "肩腕有不适时可改扶墙版本，避免强压脚跟。参见《精进习练指南》下犬式（书内104页）。";
+    if(name.contains("束角"))return "可用支撑垫高膝盖，避免强压髋或膝。有关辅助支撑可查《精进习练指南》。";
+    if(name.contains("挺尸"))return "自然呼吸、放松；不必强迫固定呼吸次数。参见《精进习练指南》的放松章节。";
     return null;
   }
   void save(){
