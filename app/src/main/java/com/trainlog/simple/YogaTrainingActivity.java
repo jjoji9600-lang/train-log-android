@@ -6,6 +6,9 @@ import android.database.Cursor;
 import android.database.sqlite.*;
 import android.content.ContentValues;
 import android.os.Bundle;
+import android.net.Uri;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import android.text.InputType;
 import android.graphics.Typeface;
 import android.view.*;
@@ -316,6 +319,7 @@ public final class YogaTrainingActivity extends Activity {
   void history(){
     mode="history";screen("瑜伽训练历史");
     add(button("← 返回瑜伽首页",this::home));
+    add(button("导出新模式的全部练习记录 CSV",this::exportSessions));
     try(Cursor c=store.getReadableDatabase().rawQuery(
         "SELECT id,day,plan_name,items,minutes,feeling,note FROM sessions ORDER BY id DESC LIMIT 70",null)){
       if(c.getCount()==0)add(text("暂无记录",14));
@@ -336,6 +340,40 @@ public final class YogaTrainingActivity extends Activity {
           .setNegativeButton("取消",null).setPositiveButton("删除",(dia,w)->{store.delete(id);history();}).show()));
     }
     }
+  }
+  static final int EXPORT_CSV=91;
+  void exportSessions(){
+    Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+    intent.addCategory(Intent.CATEGORY_OPENABLE);
+    intent.setType("text/csv");
+    intent.putExtra(Intent.EXTRA_TITLE,"练一练_瑜伽训练记录.csv");
+    startActivityForResult(intent,EXPORT_CSV);
+  }
+  @Override protected void onActivityResult(int request,int result,Intent data){
+    super.onActivityResult(request,result,data);
+    if(request!=EXPORT_CSV||result!=RESULT_OK||data==null||data.getData()==null)return;
+    try{
+      StringBuilder csv=new StringBuilder("date,plan,items,minutes,feeling,note\n");
+      try(Cursor c=store.getReadableDatabase().rawQuery(
+        "SELECT day,plan_name,items,minutes,feeling,note FROM sessions ORDER BY id ASC",null)){
+        while(c.moveToNext()){
+          for(int j=0;j<6;j++){
+            if(j>0)csv.append(',');
+            csv.append(csvField(c.getString(j)));
+          }
+          csv.append('\n');
+        }
+      }
+      try(OutputStream os=getContentResolver().openOutputStream(data.getData())){
+        if(os==null)throw new IOException("无法打开输出文件");
+        os.write(new byte[]{(byte)0xEF,(byte)0xBB,(byte)0xBF});
+        os.write(csv.toString().getBytes(StandardCharsets.UTF_8));
+      }
+      Toast.makeText(this,"训练记录已导出",Toast.LENGTH_LONG).show();
+    }catch(Exception e){Toast.makeText(this,"导出失败："+e.getMessage(),Toast.LENGTH_LONG).show();}
+  }
+  static String csvField(String s){
+    return "\"" + (s==null?"":s.replace("\"","\"\"")) + "\"";
   }
   @Override public void onBackPressed(){
     if("week".equals(mode))weeks();
