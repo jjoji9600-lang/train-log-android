@@ -17,10 +17,10 @@ jobs:
     steps:
       - name: Download verified APK
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p dist
-          gh run download 42849307056 --repo "\${{ github.repository }}" \
+          gh run download 42849307056 --repo "${{ github.repository }}" \
             --name TrainLog-debug-apk --dir dist
           test -s dist/app-debug.apk
           mv dist/app-debug.apk dist/TrainLog-v1.9.0.apk
@@ -28,14 +28,14 @@ jobs:
           sha256sum dist/TrainLog-v1.9.0.apk
       - name: Publish GitHub Release
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v1.9.0 --repo "\${{ github.repository }}" >/dev/null 2>&1; then
+          if gh release view v1.9.0 --repo "${{ github.repository }}" >/dev/null 2>&1; then
             gh release upload v1.9.0 dist/TrainLog-v1.9.0.apk \
-              --repo "\${{ github.repository }}" --clobber
+              --repo "${{ github.repository }}" --clobber
           else
             gh release create v1.9.0 dist/TrainLog-v1.9.0.apk \
-              --repo "\${{ github.repository }}" \
+              --repo "${{ github.repository }}" \
               --target 9e5e7e24039766490019fa49aab44ba73fbd4a81 \
               --title "TrainLog 1.9.0 · 双模式瑜伽训练" \
               --notes "### 新增
