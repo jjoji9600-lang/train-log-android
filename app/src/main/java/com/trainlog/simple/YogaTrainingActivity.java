@@ -90,7 +90,7 @@ public final class YogaTrainingActivity extends Activity {
       "巴拉瓦伽扭转式（跨椅背）","巴拉瓦伽扭转式（坐姿）",
       "玛里琪扭转式","加强玛里琪扭转式","英雄坐侧扭转式",
       "仰卧束角式","卧英雄式","仰卧手抓脚趾伸展式（带）",
-      "仰卧手抓脚趾伸展式（砖）","辅助桥式","倒剪式","挺尸式"
+      "仰卧手抓脚趾伸展式（砖）","辅助犁式","辅助桥式","挺尸式"
     }
   };
   static final int[] COURSE_SIZES={12,17,18,27,33,39,41,41,41,42,42,42,43,43,45,46,46,46,46,47};
@@ -159,6 +159,9 @@ public final class YogaTrainingActivity extends Activity {
     add(button("独立瑜伽训练 · 原书20周课程",this::weeks));
     add(text("同一周可以重复任意次数；不自动升级到下一周。",13));
     add(button("查看瑜伽训练历史",this::history));
+    add(button("打开旧版瑜伽体式图文库",()->{
+      Intent i=new Intent(this,MainActivity.class);i.putExtra("open_yoga_library",true);startActivity(i);
+    }));
     add(text("资料：《艾扬格瑜伽》原书课程表（纸书410～423页）；《精进习练指南》用于查询方法和辅助工具。",12));
   }
   void after(){
